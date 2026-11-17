@@ -44,6 +44,8 @@ import { EditarTareaView } from "@/features/tareas/editar-tarea-view"
 import { EntregaDeAlumnoView } from "@/features/tareas/entrega-de-alumno-view"
 import { EntregasView } from "@/features/tareas/entregas-view"
 import { ForoView } from "@/features/tareas/foro-view"
+import { ParticipanteView } from "@/features/tareas/participante-view"
+import { ParticipantesView } from "@/features/tareas/participantes-view"
 
 import { RequireCambioDeContrasena } from "./require-cambio-de-contrasena"
 import { RequireRol } from "./require-rol"
@@ -116,6 +118,8 @@ export const rutas: RouteObject[] = [
               // `tareas/nueva`) y `foros/:foroId/editar` no existe en esta rama y cae en `*`.
               { path: "foros/nuevo", element: <Navigate to="/login" replace /> },
               { path: "foros/:foroId", element: <ForoView /> },
+              // FORO-01e (§E13.14): «Participantes» no es del alumno; lleva al login, como `foros/nuevo`.
+              { path: "foros/:foroId/participantes", element: <Navigate to="/login" replace /> },
             ],
           },
         ],
@@ -164,6 +168,12 @@ export const rutas: RouteObject[] = [
               { path: "foros/nuevo", element: <CrearForoView /> },
               { path: "foros/:foroId", element: <ForoView /> },
               { path: "foros/:foroId/editar", element: <EditarForoView /> },
+              // FORO-01e (§D-8.1): «Participantes» y la participación de un alumno.
+              { path: "foros/:foroId/participantes", element: <ParticipantesView /> },
+              {
+                path: "foros/:foroId/participantes/:alumnoId",
+                element: <ParticipanteView />,
+              },
             ],
           },
         ],
@@ -221,6 +231,11 @@ export const rutas: RouteObject[] = [
                   { path: "foros/nuevo", element: <CrearForoView /> },
                   { path: "foros/:foroId", element: <ForoView /> },
                   { path: "foros/:foroId/editar", element: <EditarForoView /> },
+                  { path: "foros/:foroId/participantes", element: <ParticipantesView /> },
+                  {
+                    path: "foros/:foroId/participantes/:alumnoId",
+                    element: <ParticipanteView />,
+                  },
                 ],
               },
             ],

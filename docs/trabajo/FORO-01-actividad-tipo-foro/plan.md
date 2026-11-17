@@ -22,6 +22,13 @@ Base de "No se toca" (Enmienda 7): **`fd4a7ad`** (`main` al crear `feat/foro-01-
 4. **El plan no toca `middleware/`, `adapters/auth` ni `infra/`**, ni `.env.example`.
 5. Las decisiones ya tomadas: DH-01 a DH-18 (DH-05 con tu corrección), PB-1 y PB-2, el complemento de DH-12 y N-19.
 
+**Enmienda 13 (2026-11-17), el arranque de 01e:** base `24916a4`, con 01d cerrada. Hace tres cosas:
+- escribe las correcciones de hechos que el manager arbitró en 01d;
+- repasa los inventarios de 01e con las lecciones de 01c2 y 01d;
+- propone los textos de `DESIGN.md` §7.34 y de los documentos del cierre.
+
+Todo está en "§E13", debajo de estas notas, y **manda sobre §E12, §E11, §E10, §E9, §E8 y §E7 en lo que toca**: §D-8.4, §D-8.5, §D-9, §D-10, los inventarios y los casos de 01e, A-04, A-06 y la comprobación humana. Trae tres decisiones nuevas para el humano (DH-19 a DH-21, §E13.15). La tabla está al final, en "Enmienda 13 — tabla de cambios".
+
 **Enmienda 12 (2026-11-16), corta:** atiende la PARADA del programador en 01d.
 - `features/clases/estatico-02c-r1.ataque.test.ts:78-85` fija la lista cerrada de los lectores de `.puedeBorrar`, y 01d suma dos, como mandan §D-11 y §D-8.4. Lo resuelve un C-n nuevo, C-21.
 - Inventaría todas las pruebas de `frontend/src` que leen el código fuente y fijan una lista cerrada, una cuenta o una línea, con avisos para 01e.
@@ -67,6 +74,497 @@ Con la ruta nueva, 01a pasa de unos 30 archivos y se parte en **01a1** y **01a2*
 **Enmienda 1 (2026-11-04):** atiende la revisión del manager en modo plan (`revision.md`: M-01 a M-04, N-01 a N-10 y los detalles menores) y la corrección del orquestador sobre DH-13. Los cambios van en su lugar, marcados "(E1-n)". La tabla de cambios está al final, en "Enmienda 1 — tabla de cambios".
 
 **Regla de orden de fusión (E1-2, M-02; la confirma el humano en DH-13):** ningún commit de FORO-01 entra a `main` antes de que ADMIN-01 se fusione en `main`. 01a se queda en `feat/foro-01`. 01b arranca trayendo `main` a `feat/foro-01` (DH-14). **(Enmienda 7) Sin objeto y cumplida:** ADMIN-01 entró a `main` (PR #33 y #35) sin que entrara antes ningún commit de FORO-01 (el PR #32 se revirtió con el #34), y la rama nueva nace de `fd4a7ad`, así que no hay fusión de `main` que traer (§E7.0).
+
+## §E13. Enmienda 13 (2026-11-17): el arranque de 01e
+
+Manda sobre §E12, §E11, §E10, §E9, §E8 y §E7 en lo que toca: §D-8.4, §D-8.5, §D-9 y §D-10; el inventario, los casos y los pasos de 01e; A-04, A-06 y A-07; y la comprobación humana.
+- No cambia ids existentes ni decisiones del humano.
+- Lo que pide una decisión nueva está en §E13.15.
+
+Árbol leído: `24916a4`, con todo 01d. Fuentes: `revision.md`, "Revisión final — FORO-01d (2026-11-17)", "Arbitraje de la ronda 1 — FORO-01d: T-01 y T-02" y "Verificación de la corrección — FORO-01d: T-01 y T-02"; y `reporte-tester.md`, rondas 1 y 2 de FORO-01d.
+
+**01e no toca `shared/` ni `backend/`.**
+- Las rutas 6, 7 y 12 a 16 existen desde 01a, y `conTipo`, desde 01b.
+- Los esquemas que 01e lee ya existen y no cambian: `miParticipacionRespuestaSchema` con `calificacion`, `listaEntregasRespuestaSchema`, `entregaDeAlumnoRespuestaSchema`, `listaParticipacionesDeAlumnoRespuestaSchema`, `listaComentariosPrivadosRespuestaSchema` y `calificarEntregaSchema`.
+- Se corre solo el frontend, y no hace falta preguntar por Docker ni por la red.
+
+### §E13.1. Correcciones de hechos que arbitró el manager en 01d
+Las arbitró el manager y el humano las ve aquí; puede cambiarlas. Van como notas **(Enmienda 13)** en §D-8.4, §D-9 y §D-10, sin borrar el historial.
+1. **Publicar escribe al final de lo cargado** (la última página cargada de la lista o del bloque), no en "la primera página". Las dos listas del foro unen sus páginas con la regla de **la última aparición** (`unirPaginasConLaUltimaAparicion`, `features/tareas/lib.ts:878-885`): con páginas por cargar, la nueva se ve al final de lo cargado y, al cargar más, queda donde dice el servidor. Es T-01 de 01d, opción (b).
+2. **El foco de un control que desaparece dentro de un bloque va al encabezado de ese bloque:** el `h3` «Participaciones» o el `h4` «Réplicas», con `useFocoAlEncabezadoSiSePierde` (`features/tareas/hooks.ts:1169-1215`). La raíz de la vista queda para la vista reemplazada y para el salto a otro foro. Es T-02 de 01d.
+3. **"Lo escrito se conserva" vale mientras el formulario siga en pantalla** (un `5xx`, un `VALIDACION`). Con un `409` que lo quita (`PARTICIPACION_YA_PUBLICADA`, `PARTICIPACION_CALIFICADA` o `FORO_CERRADO` que lo dejan sin aplicar), lo escrito se pierde y queda el aviso del servidor.
+4. **O-01d-2.** Cuando una principal desaparece mientras se ven sus réplicas (`404 PARTICIPACION_NO_ENCONTRADA` al recargarlas, con datos):
+   - un solo aviso, una vez por fallo, «Esa participación ya no existe.»; la lista se renueva y la fila sale con su bloque;
+   - «No pudimos actualizar las réplicas. Mostramos la última versión que tenemos.» (decisión del humano) queda para los demás fallos de recarga con datos;
+   - dos bloques que fallan a la vez dan dos avisos, uno por bloque.
+5. **Los textos que §D-9 no traía y ya están en `features/tareas/data.ts:528-575`:**
+   - N-37: «No pudimos cargar las participaciones.» y «No pudimos cargar las réplicas.»;
+   - el aviso de las réplicas;
+   - el `h4` «Réplicas», oculto (`sr-only`);
+   - el nombre oculto de cada «Borrar»: «participación de {nombre}» y «réplica de {nombre}», tras «Borrar» (desviación 4, aceptada);
+   - las confirmaciones, los botones y los avisos de borrar: «Se borrará con sus réplicas. Si el alumno ya tiene calificación, se conserva.», «Se borrará esta réplica.», «Sí, borrar participación», «Sí, borrar réplica», «Cancelar», «Participación borrada» y «Réplica borrada».
+   - **(Enmienda 13, corrección; N-45)** Los de borrar no son de los que faltaban: están en §D-11 (`plan.md:2910-2912` en la versión que verificó el manager, la de 3870 líneas), aprobados con el plan. Lo que §D-9 no traía son los de N-37, el aviso de las réplicas, el `h4` y los nombres ocultos de «Borrar».
+
+### §E13.2. Las pruebas que leen el código, desde las pruebas (punto 1)
+**Comandos** (sobre `24916a4`):
+- `rg -l 'import\.meta\.glob|readFileSync|readdirSync' frontend/src` da 43 archivos, y `rg -l '\?raw|node:fs|from "fs"' frontend/src` da 47. Unidos, **48**: los mismos de §E12.2.
+- `rg -n 'import\.meta\.glob…\(\s*["'"'"'][^"'"'"']+["'"'"']|\?raw"'` da el alcance de cada uno.
+
+Los abrí uno por uno contra los archivos de 01e:
+- en `features/tareas`: `participantes-view.tsx`, `participante-view.tsx` y `components/devoluciones.tsx` (nuevos), `components/panel-de-calificacion.tsx`, `components/tabla-de-entregas.tsx`, `components/mi-participacion.tsx`, `foro-view.tsx`, `hooks.ts`, `data.ts`, `lib.ts` y `types.ts`;
+- en `features/calificaciones`: `lib.ts`, `components/tabla-del-gradebook.tsx` y `components/lista-de-mis-calificaciones.tsx`;
+- `app/router.tsx`;
+- con DH-21 (a), además `features/clases/hooks.ts`.
+
+| Prueba (alcance) | Lo que fija | Con 01e | Clase |
+|---|---|---|---|
+| `styles/clases-r1.ataque` (V-06) | 96 `enEspera=` y `fijos` | «Ver más alumnos», «Ver más participaciones» (de un alumno) y «Ver más comentarios» (los dos bloques de devoluciones, si cada uno tiene su botón) | **C-14** (abajo) |
+| `lib/guardas-ch4-r1.ataque` (ATQ-CH4-34) | Los `.refetch(` sin opción (lista cerrada) | La recarga de `participante-view.tsx` tras un `409` de calificar, como la de `entrega-de-alumno-view.tsx` | **C-16** (abajo) |
+| `lib/estado-por-id-estatico-ch6` (CH6-A30) | (a) `key={claseId}` en todo render prop de una línea; (c) la `key` de cada vista con ids | `participantes-view.tsx` y `participante-view.tsx` | **Lista cerrada** (c); (a) se cumple por diseño |
+| `features/calificaciones/lib.test.ts:146-164` | Las cuatro URL del gradebook y de "Mis calificaciones" | Suman `conTipo=si` | **Lista cerrada** (ya en §E7.5.6) |
+| `lib/guardas-de-doble-clic-estatico` (CH4-01 a CH4-04) | Guardas; `fetchNextPage({ cancelRefetch: false })`; los tres lectores de `isFetchingNextPage` | El panel conserva `calificar.mutateAsync` dentro de `enviar`, que guarda `handleSubmit` | Vigilada. **R-01e-1** y **R-01e-2** |
+| `features/clases/estatico-02c-r1.ataque` | `.administracion` solo en la firma; `.puedeBorrar` (lista de 8, C-21); `perspectivaDeRuta(` (lista de 10) | Ninguna vista de 01e lee `.puedeBorrar` ni `.administracion`, ni llama a `perspectivaDeRuta(`: usan `useRutaDeLaClase` y `FirmaDelAutor` | Vigilada (R-01e-3) |
+| `features/tareas/estatico-01c` (CAL-1C12 y CAL-1C13) | Sobre `types.ts`, `data.ts`, `lib.ts`, `hooks.ts`, el panel y `entrega-de-alumno-view.tsx`: sin `calificacion ??` ni `calificacion \|\|` (tampoco `rol`, `estadoPago` ni `accesoRestringido`); `renovarTrasErrorDeLaEntrega(` en 3; tipos solo en `types.ts`; palabras prohibidas en los comentarios | Las tocan los cambios de 01e en esos archivos | Vigilada (R-01e-4) |
+| `features/tareas/estatico-01c-r1.ataque` (CAL-T-94 a CAL-T-98) | El panel: sin texto suelto, 3 campos, `.version` exactamente 2 veces en los componentes de 01c, una sola `primary`; colores y emojis crudos | El panel con `actividad` | Vigilada (R-01e-5) |
+| `features/tareas/aviso-calificar-01c-r3` (CAL-T-127) | Las cinco llamadas a `avisarDelErrorDeLaEntrega(`; `mensajeDelAvisoDeCalificar` solo en `useCalificarEntrega` | `useCalificarParticipacion` | Vigilada (§E9.4) |
+| `features/tareas/entregas-01d-r1`, `-r2`, `-r3`, `entregas-01e-r1` y `-r2` | Texto crudo de `hooks.ts`, `lib.ts`, `data.ts`, `types.ts`, `tabla-de-entregas.tsx` y `entrega-de-alumno-view.tsx`: sin `fixed`, `vidrio`, `animate-`, `localStorage` ni `_blank`; ningún gancho con `MiEntrega`, `Hilo`, `Comentar`, `Entregar` ni `Anular` | `tabla-de-entregas.tsx` y los ganchos nuevos (`useDevoluciones`, `useMisDevoluciones`…) | Vigilada (§E9.4) |
+| `features/tareas/tareas-01a-r1`, `tareas-01d-r1`, `-r2` y `-r3` | Todo `features/tareas` | Los archivos nuevos | Vigilada (§E9.4) |
+| `features/tareas/participar-01d` (FORO-1D04b) | `mi-participacion.tsx` sin `Date.now`, `new Date(`, `getTime(` ni `fechaLimite`, **crudo**; las funciones de `lib.ts` cuyo nombre lleva `Participacion` o `Replica`, sin `Date.now`, `getTime(` ni `fechaLimite` | 01e cambia `mi-participacion.tsx` (la calificación y las devoluciones) | Vigilada. **R-01e-6** |
+| `features/calificaciones/estatico-01d`, `estatico-01d-r1.ataque` y `estatico-02b` | 12 archivos exactos; `components/foco` con 3; ninguna `primary`; ningún texto suelto ni `aria-label="…"`, `title="…"`… literal en los `.tsx`; sin `fixed`, `-[…]`, `text-danger` ni `text-destructive`; el gradebook sin `toast`; `hooks.ts` sin `toast` ni `onError`; los dos `bg-surface` de la tabla; las palabras prohibidas en los comentarios; **CAL-T-191 y CAL-T-192 sobre toda prueba de `features/calificaciones`** | El enlace por tipo en la tabla y en la lista; la prueba nueva `features/calificaciones/foro-01e.test.tsx` | Vigiladas. **R-01e-7** y **R-01e-8** |
+| `features/clases/errores-ch3-r1.ataque` (O-05; alcance `features/clases` y `features/calificaciones`, texto crudo) | Nada de `.split(":")`, `new RegExp(` ni copias de la expresión de ruta; `.message` solo en sus dos formas | `features/calificaciones/lib.ts` y, con DH-21 (a), `features/clases/hooks.ts` | Vigilada (R-01e-9) |
+| `features/clases/estatico-r1.ataque`, `errores-ch3` y `ver-mas-01e-r3.ataque` | Lo de `features/clases` | Solo con DH-21 (a) | Vigiladas |
+| `components/layout/estatico-r1.ataque` | «Ocultar» en un `.tsx` (sin quitar comentarios); `fixed`, `animate-` y la lista de 7 valores arbitrarios; `<a href="…">` literal | Los `.tsx` nuevos | Vigilada (R-01e-10) |
+| `components/ui/desplazamiento-posicionado-h6` | `overflow-x-auto` con `relative` | `TablaDeEntregas` usa `Table`, que ya lo trae | Vigilada (R-01e-10) |
+| `lib/errores-de-api-estatico`, `lib/estatico-ch3-r1.ataque`, `lib/estatico-ch3-r2.ataque`, `lib/errores-ch3-r1.ataque`, `services/apiClient-ch3` y `apiClient-ch3-r1.ataque` | `.message` solo en tres archivos; la lista de 15 de `isError` con `reset()`; `esErrorDeCursor`; `CODIGOS_QUE_REDIRIGE_EL_CLIENTE`; invisibles | La traducción del foro sigue en `features/tareas/lib.ts`; el panel conserva su error en su estado | Vigiladas (§E9.4) |
+| `features/clases/refactor-01c-r1`, `reloj-01e-r4`, `estatico-03c1-r1` y `foros-01c1-r1-foco` | §E9.4; el reloj fijo en las pruebas que comparan «Vence…» | Las pruebas nuevas | Vigiladas |
+| `features/admin` (2), `styles/tokens` y `tokens-r1`, `badge-03b-r1`, `app/fondo-r1`, `clases-r4`, `xlsx-muestra`, `como-se-entrega-01a`, `features/tareas/errores-ch3-r1` y `lib/errores-ch3-r2` | Fuera de lo que toca 01e | — | No le afecta |
+
+**Restricciones de diseño de 01e** (cada una con la prueba que la vigila):
+- **R-01e-1.** Toda mutación nueva vive en un manejador a dos espacios con su guarda (CH4-01, ATQ-CH4-32), sin desestructurar ni renombrar `mutate` (ATQ-CH4-30) y sin pasarla como valor (ATQ-CH4-31).
+  - El panel elige su mutación sin hooks condicionales: llama a `useCalificarEntrega` y a `useCalificarParticipacion` y usa una u otra según `actividad`, con el nombre `calificar` de siempre.
+  - Así `panel-de-calificacion.tsx#calificar.mutateAsync` sigue cubierta por la guarda de `handleSubmit` y `EXCEPCIONES` no cambia.
+- **R-01e-2.** Ninguna vista de 01e lee `isFetchingNextPage`.
+  - CH4-04 fija sus tres lectores; uno es `entregas-view.tsx`, así que `ParticipantesView` **no copia** el efecto de foco de Entregas.
+  - Usa `useVerMasConservandoLaLista` (§E8.4), que da `useFocoAlCargarMas`.
+- **R-01e-3.** Las vistas de 01e no leen `.puedeBorrar` ni `.administracion` (`FirmaDelAutor` para la firma de «En respuesta a»), ni llaman a `perspectivaDeRuta(`.
+- **R-01e-4.** En `features/tareas/types.ts`, `data.ts`, `lib.ts`, `hooks.ts` y el panel:
+  - ningún `calificacion ??` ni `calificacion ||`;
+  - los tipos solo en `types.ts`;
+  - `renovarTrasErrorDeLaEntrega(` sigue en 3;
+  - ningún comentario lleva las palabras de §D-0.9.
+- **R-01e-5.** El panel no suma lecturas de `.version` ni campos, no escribe texto suelto en el JSX (los textos del foro, de `data.ts`) y conserva una sola `primary`.
+- **R-01e-6.** `mi-participacion.tsx` no escribe `new Date(`, `Date.now`, `getTime(` ni `fechaLimite`, **tampoco en un comentario**: la fecha de la calificación la da `CalificacionDeLaEntrega`. Las funciones nuevas de `lib.ts` con `Participacion` o `Replica` en su nombre no usan `getTime(`, `Date.now` ni `fechaLimite`.
+- **R-01e-7.** En `features/calificaciones`:
+  - ningún archivo nuevo;
+  - el texto del enlace de un foro, y su parte oculta, salen de `data.ts` con `{…}`, nunca como `aria-label="…"` literal;
+  - **(Enmienda 13, corrección; N-44, opción (i))** el enlace del foro **reutiliza los textos de hoy**, y la viñeta anterior queda así:
+    - en el gradebook, la celda sigue con `textoDeCelda` y su parte oculta, `TEXTOS_GRADEBOOK.celdaDe(alumno, titulo)`, que ya nombra la actividad por su título (`tabla-del-gradebook.tsx:69-85`);
+    - en "Mis calificaciones", el enlace sigue con el título (`lista-de-mis-calificaciones.tsx:44-47`);
+    - solo cambia el destino (`to`) según `tipo`, con `enlaceAParticipante` y `enlaceAForo` de `lib.ts`;
+    - `features/calificaciones/data.ts` no entra a "Se toca" y no hay texto nuevo, como dice §E9.4. Si al implementar hiciera falta uno, PARADA;
+    - lo leí en el código: hoy los dos enlaces se arman sin textos que digan "tarea", así que la opción (i) basta y DH-19 no cambia;
+  - ninguna `primary`;
+  - ningún `bg-` nuevo;
+  - `hooks.ts` sin `onError`.
+- **R-01e-8.** `features/calificaciones/foro-01e.test.tsx` fija el reloj con `useFakeTimers(` **y** `setSystemTime(` si construye fechas o compara textos de tiempo (CAL-T-191), no termina con un `return` temprano (CAL-T-192) y no lleva emojis (CAL-T-185).
+- **R-01e-9.** En `features/calificaciones` y, con DH-21 (a), en `features/clases`: nada de `.split(":")`, `new RegExp(` ni `.message` fuera de sus dos formas, tampoco en un comentario.
+- **R-01e-10.**
+  - ningún `.tsx` escribe «Ocultar», tampoco en un comentario;
+  - ningún valor arbitrario nuevo, `fixed` ni `animate-`;
+  - un contenedor con `overflow-x-auto` lleva `relative`.
+
+**C-14 (V-06, `styles/clases-r1.ataque.test.ts`), en la ronda 0 bis** con las cifras que declare el programador, en la forma de C-13 (§E12.4):
+- el título y `toHaveLength` pasan de 96 a 96 + n;
+- el comentario: `// FORO-01e ronda 0 bis (C-14, §E7.5.6 y §E13.2): de 96 a {96 + n} enEspera=. Entran {archivo} ({k}: «…») …; {los que tienen 0} (0). Sigue protegiendo lo mismo: ningún \`disabled\` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con espera cambien solo con el plan.`;
+- un bloque en `fijos`, después del de FORO-01d, con cada archivo nuevo y su cifra, incluidos los de 0.
+
+El panel ya está contado (1) y no cambia.
+
+**C-16 (ATQ-CH4-34, `lib/guardas-ch4-r1.ataque.test.ts:113-125`), en la ronda 0 bis** con las líneas que declare el programador:
+- suma a la lista las líneas de `participante-view.tsx` de la recarga tras un `409` de calificar, en la forma de las dos de `entrega-de-alumno-view.tsx` (`consulta.refetch(),` y la del foro que se recarga solo con `RUBRICA_MODIFICADA` o `ENTREGA_NO_CALIFICABLE`);
+- el comentario: `// FORO-01e ronda 0 bis (C-16, §E8.2 y §E13.2): la participación de un alumno tiene la forma de la entrega de un alumno (la recarga tras un 409 de calificar, dentro de un manejador que ya guarda su ref).`;
+- si la vista no tiene ninguna, C-16 no se aplica.
+
+**Lista cerrada de CH6-A30 (c)** (`lib/estado-por-id-estatico-ch6.test.ts:114-126`), literal:
+```ts
+    // FORO-01e (§E7.5.6 y §E13.2): la lista de participantes, por el foro; la participación de un alumno,
+    // por el foro y el alumno juntos (el mismo alumno participa en cada foro).
+    expect(textoDe("tareas/participantes-view.tsx")).toContain("key={foroId}")
+    const keyDelParticipante = ["key={`", "$", "{foroId}:", "$", "{alumnoId}`}"].join("")
+    expect(textoDe("tareas/participante-view.tsx")).toContain(keyDelParticipante)
+```
+
+### §E13.3. Pruebas que fijan una conducta con la vista desmontada, sin observador o por conteo (punto 2)
+**Comandos y resultados:**
+- `rg -c 'ByRole\("alert"|AllByRole\("alert"' -g '*.test.tsx' frontend/src`: 534 apariciones en 119 archivos.
+  - Las que montan una vista que 01e cambia con datos: `features/tareas/foros-01c2-r1` (`:920`, vista reemplazada), `foros-01c2-r2` (`:264` y `:452`, reemplazadas), y en la entrega de una tarea `conflicto-01a`, `entregas-01e`, `entregas-01e-r1`, `tareas-01d-r3` y `clase-archivada-01d2-r1`.
+  - Del gradebook y "Mis calificaciones": `gradebook-01d*`, `mis-calificaciones-01d*` y `secciones-01d-r3`.
+  - **Ninguna de las pruebas de 01d** (`participar-01d`, `replicas-01d`, `borrar-participacion-01d`, `recuperar-participaciones-01d`, `foros-01d-r1` y `-r2`) consulta `alert`; solo `actividades-foros-01d`, en «Actividades».
+- `rg -n 'calificacion: \{|estado: "calificado"'` en las pruebas del foro: solo `foros-01d-r2.ataque.test.tsx:440` (ATQ-FORO-142), con `calificacion` en `null`.
+- `rg -n 'claveEntregaDeAlumno|isInvalidated\)\.toBe\(false\)' -g '*.test.tsx' frontend/src/features/tareas`: `calificar-01c-r1.ataque.test.tsx:860` (CAL-T-87, otra clase); `clase-archivada-01d2-tareas.test.tsx:561` y `:973` (la tarea, no la entrega); `foros-01c2-r1` y `-r2` (el foro y la lista).
+- `rg -n 'gradebook\?|mis-calificaciones\?|conTipo|searchParams\.(toString|keys)' -g '*.test.ts*'`:
+  - la URL completa solo la fija `calificaciones/lib.test.ts:150-162`, que va a la lista cerrada;
+  - `secciones-01d-r3` y `r4`, `app/router-01d` y `app/rutas-01d-r1` usan `includes` o `startsWith`.
+
+**Resultado: ninguna prueba cambia, salvo las de la lista cerrada y los C-n de §E13.2.** Las vigiladas siguen verdes si 01e cumple estas restricciones:
+- **R-01e-11 (la lección de N-34).** «Comentarios de tu maestro» se pide solo cuando `miParticipacion.calificacion !== null`.
+  - El comentario de la devolución solo nace al calificar con comentario, así que sin calificación no hay nada que pedir.
+  - Mientras carga no se pinta nada.
+  - Si su primera carga falla, el bloque dice su texto (DH-19) con su `MensajeError`; vacío, no se pinta.
+  - Así ningún doble de 01c2 ni de 01d, que traen `calificacion` en `null`, ve un `alert` nuevo en `ForoView`.
+- **R-01e-12.** El panel de una tarea, sin `actividad`, hace exactamente las mismas peticiones que hoy.
+  - CAL, ENTREGAS y ADMIN-01d2 (`clase-archivada-01d2-tareas.test.tsx` filas 33 y 36, la tabla C y la recarga en vuelo) quedan vigiladas.
+  - Lo único que cambia en `useCalificarEntrega` es FORO-1E41 (§E13.9): un `409` de calificar marca vieja la entrega con `refetchType: "none"`, que no pide nada. Con la vista montada y la clase activa, la vista la vuelve a pedir como hoy, una sola vez.
+- **R-01e-13.** El gradebook y "Mis calificaciones" sin `tipo` en la respuesta (los dobles de hoy) enlazan como hoy: un foro solo se reconoce con `tipo: "foro"`.
+- **R-01e-14. (Enmienda 13, corrección; N-43)** La regla de N-36 (R-01d-3) vale para los bloques nuevos de 01e.
+  - **Ante un error que reemplaza la vista** (`errorQueReemplazaLaVistaDelForo(true, error)`, que cubre `TAREA_NO_ENCONTRADA`, `SIN_ACCESO_A_LA_CLASE`, `ALUMNO_NO_ENCONTRADO` y el `VALIDACION` de `claseId:`, `foroId:` o `alumnoId:`), el bloque:
+    - pide de nuevo **solo** la consulta principal de su vista, con `exact`, una vez por fallo nuevo (por su `errorUpdateCount`) y desde un efecto;
+    - no repite el texto: muestra su texto genérico;
+    - y deja que la respuesta de la consulta principal decida si la vista se reemplaza.
+
+    Con un servidor inconsistente (la principal responde bien y el bloque otra vez falla), el bloque se queda con su error y no se vuelve a pedir: no hay ciclo.
+  - **En `ForoView`,** «Comentarios de tu maestro» usa el gancho de 01d `usePedirElForoAnteUnFalloNuevo` (`hooks.ts:876-888`, con `pedirDeNuevoSoloElForo`), sin cambiarlo.
+  - **En `ParticipanteView`,** «Sus participaciones» y «Comentarios de la devolución» usan dos funciones nuevas, hermanas de las de 01d, en `features/tareas/hooks.ts`. Las de 01d no cambian de firma:
+    ```ts
+    // FORO-01e (§E13.3, R-01e-14): un bloque de la participación de un alumno con un error que reemplaza la
+    // vista vuelve a pedir solo la participante (exact): su respuesta decide si la vista se reemplaza; el
+    // bloque no se repite.
+    const pedirDeNuevoSoloLaParticipante = (
+      queryClient: ReturnType<typeof useQueryClient>,
+      claseId: string,
+      foroId: string,
+      alumnoId: string,
+      error: unknown,
+    ) => {
+      if (!errorQueReemplazaLaVistaDelForo(true, error)) return
+      void queryClient.invalidateQueries(
+        { queryKey: claveParticipante(claseId, foroId, alumnoId), exact: true },
+        { cancelRefetch: false },
+      )
+    }
+
+    // R-01e-14: el gancho de cada bloque llama a pedirDeNuevoSoloLaParticipante una vez por fallo nuevo
+    // (por su errorUpdateCount), desde un efecto. Un fallo que ya estaba en la caché al montar no pide nada.
+    const usePedirLaParticipanteAnteUnFalloNuevo = (
+      claseId: string,
+      foroId: string,
+      alumnoId: string,
+      fallo: { errorUpdateCount: number; error: unknown },
+    ) => {
+      const queryClient = useQueryClient()
+      const fallosVistosRef = useRef(fallo.errorUpdateCount)
+      useEffect(() => {
+        if (fallosVistosRef.current === fallo.errorUpdateCount) return
+        fallosVistosRef.current = fallo.errorUpdateCount
+        pedirDeNuevoSoloLaParticipante(queryClient, claseId, foroId, alumnoId, fallo.error)
+      }, [queryClient, claseId, foroId, alumnoId, fallo.errorUpdateCount, fallo.error])
+    }
+    ```
+    `claveParticipante` es prefijo de los dos bloques. Por eso el `exact` es lo que evita el ciclo: la relectura de la participante no vuelve a pedir el bloque que falló.
+  - **Lo prueba FORO-1E48** (§E13.9).
+
+### §E13.4. Las mutaciones que cambian lo que muestran las vistas de 01e (punto 3)
+**Vistas de 01e:**
+- "Participantes", con «Participaron n de m»;
+- la participación de un alumno: lo que escribió, las devoluciones y el panel;
+- la calificación y «Comentarios de tu maestro» en "Tu participación";
+- el gradebook y "Mis calificaciones" con el foro.
+
+| Mutación (archivo) | Qué invalida hoy | ¿Alcanza lo de 01e? | Resultado |
+|---|---|---|---|
+| Publicar participación (`usePublicarParticipacion`) | `claveMiParticipacion` y la lista (escritas), la lista de foros, el trabajo y el prefijo de calificaciones | La sesión del alumno no tiene "Participantes"; el gradebook, sí (prefijo) | Nada |
+| Publicar réplica | El bloque y el conteo | Lo que escribió un alumno cambia, pero solo en la sesión de otro (maestro o admin) | Nada |
+| **Borrar participación o réplica (admin)** (`useBorrarParticipacion`, `hooks.ts:1098-1157`) | La lista, el bloque, la lista de foros y el prefijo de calificaciones | **No** alcanza "Participantes" ni la participación de ese alumno (su estado cambia con PB-2 (a), y lo que escribió cambia) | **Entra a 01e:** el `onSuccess` suma `invalidateQueries({ queryKey: clavePrefijoDeParticipantes(claseId, foroId) })`, sin `exact` (la lista, cada participante y lo suyo). FORO-1E42 |
+| Calificar una tarea (`useCalificarEntrega`) | La entrega (escrita), la lista de entregas, el prefijo de calificaciones y el hilo | No toca el foro | FORO-1E41 suma la marca vieja (§E13.3) |
+| **Agregar y quitar un alumno** (`useAgregarAlumno` y `useQuitarAlumno`, `features/clases/hooks.ts:812-881`) | Alumnos, candidatos, personas e impartidas | **No** alcanza "Participantes" (el conteo y las filas), las entregas de una tarea ni el gradebook. Es heredado: igual en Entregas y en Calificaciones | **DH-21** |
+| Editar el foro (`useEditarForo`) | `claveForo` (escrita, `exact`) y la lista de foros, el trabajo, los temas, las categorías y las calificaciones | El panel lee la rúbrica y los puntos de `claveForo`, ya escrita; la participación no cambia | Nada |
+| Borrar el foro | `removeQueries(claveForo)` sin `exact` | Se lleva también las claves de 01e, que cuelgan de `claveForo` (§E13.5) | Nada |
+| Mover el foro (`useMoverElemento`, con `exact`) | El trabajo, los temas y `claveForo` | No cambia lo de 01e | Nada |
+| Temas y categorías (T-03) | `clavePrefijoDeForos` | Alcanza todo; el peso de una categoría cambia el gradebook (prefijo de calificaciones, de hoy) | Nada |
+| Editar la clase | `claveClaseDetalle` sin `exact` | Todo | Nada |
+| Archivar y restaurar; `409 CLASE_ARCHIVADA` | `claveClaseDetalle` (`exact`) | Los controles leen `useSoloLecturaDeLaClase` | Nada |
+
+**(Enmienda 13, corrección; N-45)** FORO-1E42 no es una regla nueva: §D-11 ya pedía, al borrar, renovar el prefijo de participantes, porque la entrega pudo cambiar. 01d no podía hacerlo porque esa clave no existía, y 01e lo cumple ahora.
+
+**Calificar una participación (`useCalificarParticipacion`, nueva), y con qué alcance:**
+- **Éxito:**
+  - `setQueryData(claveParticipante(claseId, foroId, alumnoId), respuesta)`, `exact`;
+  - `invalidateQueries({ queryKey: claveListaDeParticipantes(claseId, foroId) })`;
+  - `invalidateQueries({ queryKey: clavePrefijoDeCalificaciones(claseId) })`;
+  - `invalidateQueries({ queryKey: claveListaDeForos(claseId) })`, como en §D-8.5;
+  - con comentario, `invalidateQueries({ queryKey: claveDevoluciones(claseId, foroId, alumnoId), exact: true })`;
+  - el aviso de siempre ("Calificación publicada" o "Calificación actualizada").
+- **No invalida** `claveForo`, `claveParticipaciones`, `claveParticipacionesDeAlumno` ni `claveMiParticipacion`: calificar no las cambia, y "Tu participación" es de la sesión del alumno.
+- **`409`** (`ENTREGA_MODIFICADA`, `RUBRICA_MODIFICADA` o `ENTREGA_NO_CALIFICABLE`):
+  - el aviso con el texto del servidor;
+  - `invalidateQueries({ queryKey: claveParticipante(…), exact: true, refetchType: "none" })` (FORO-1E41);
+  - la vista recarga como la entrega de un alumno (§7.27).
+- **Lo demás:**
+  - la regla del foro: `pedirDeNuevoSoloElForo` ante un error que reemplaza la vista;
+  - `marcarViejoElDetalleAnteClaseArchivada`;
+  - un error de un campo que el panel pinta no avisa; uno que no pinta avisa una vez con `mensajeDeErrorForo`;
+  - un código con que `apiClient` redirige no avisa.
+- **No usa** `avisarDelErrorDeLaEntrega`, `mensajeDelAvisoDeCalificar` ni `renovarTrasErrorDeLaEntrega` (§E9.4).
+
+### §E13.5. Las claves de 01e (punto 4)
+Van en **`features/tareas/lib.ts`**, junto a las de 01d y las de entregas. **`services/trabajoService.ts` no cambia** (A-04, N-35). Siguen la forma de las entregas de una tarea (`clavePrefijoDeEntregas`, `"lista"`, `"alumno"`):
+```ts
+export const clavePrefijoDeParticipantes = (claseId: string, foroId: string) =>
+  [...claveForo(claseId, foroId), "participantes"] as const
+export const claveListaDeParticipantes = (claseId: string, foroId: string) =>
+  [...clavePrefijoDeParticipantes(claseId, foroId), "lista"] as const
+export const claveParticipante = (claseId: string, foroId: string, alumnoId: string) =>
+  [...clavePrefijoDeParticipantes(claseId, foroId), "alumno", alumnoId] as const
+export const claveParticipacionesDeAlumno = (claseId: string, foroId: string, alumnoId: string) =>
+  [...claveParticipante(claseId, foroId, alumnoId), "participaciones"] as const
+export const claveDevoluciones = (claseId: string, foroId: string, alumnoId: string) =>
+  [...claveParticipante(claseId, foroId, alumnoId), "devoluciones"] as const
+export const claveMisDevoluciones = (claseId: string, foroId: string) =>
+  [...claveMiParticipacion(claseId, foroId), "devoluciones"] as const
+```
+
+| Posición | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|
+| `claveListaDeParticipantes` | `"foro"` | `foroId` | `"participantes"` | `"lista"` | | |
+| `claveParticipante` | `"foro"` | `foroId` | `"participantes"` | `"alumno"` | `alumnoId` | |
+| `claveParticipacionesDeAlumno` y `claveDevoluciones` | `"foro"` | `foroId` | `"participantes"` | `"alumno"` | `alumnoId` | `"participaciones"` o `"devoluciones"` |
+| `claveMisDevoluciones` | `"foro"` | `foroId` | `"mia"` | `"devoluciones"` | | |
+| (01d) `claveReplicas` | `"foro"` | `foroId` | `"replicas"` | `participacionId` | | |
+
+- **Ningún id comparte posición con un segmento fijo bajo el mismo padre:**
+  - las posiciones 3, 5 y 8 son siempre fijas;
+  - la 6 es fija salvo detrás de `"replicas"`;
+  - `alumnoId` (7) va solo detrás de `"alumno"`.
+- **Los prefijos:**
+  - `clavePrefijoDeParticipantes` alcanza la lista y cada participante;
+  - `claveParticipante` alcanza lo que escribió y sus devoluciones, así que **se escribe y se invalida con `exact: true`** donde solo cambia la participante (calificar, el `409`);
+  - `claveMiParticipacion` alcanza `claveMisDevoluciones`, y `renovarTrasErrorDeLaParticipacion` (01d), que la invalida sin `exact` ante un `409` de publicar, también pide de nuevo las devoluciones. Es inocuo: una lectura más, y solo si el bloque está abierto (R-01e-11).
+- **Ids canónicos (nota (b)):**
+  - `ParticipantesView` y `ParticipanteView` pasan `:foroId` y `:alumnoId` por `idCanonicoDeLaRuta` a la entrada, antes de toda clave, `key` y ruta;
+  - la `key` del contenido es `` `${foroId}:${alumnoId}` `` con los ids canónicos;
+  - `ParticipanteView` sigue la Forma C de `entrega-de-alumno-view.tsx`: una raíz con `useFocoAlPerderseElControl` y su clave compuesta, y el contenido con la `key`.
+- **Lo prueban FORO-1E45** (las formas, con `alumnoId` igual a `"lista"`, `"alumno"`, `"participaciones"` o `"devoluciones"`) **y FORO-1E46** (las mayúsculas).
+
+### §E13.6. Las listas paginadas y el foco (punto 5)
+**Ninguna lista nueva recibe la respuesta de una mutación:** calificar las invalida, no las escribe. Así que el riesgo de T-01 de 01d (la fila escrita en medio de páginas por cargar) no se presenta. Al recargar, TanStack Query vuelve a pedir todas las páginas cargadas.
+
+| Lista | Unión de páginas | Con páginas pendientes | Foco cuando desaparece un control |
+|---|---|---|---|
+| "Participantes" (`participantes-view.tsx`) | La de Entregas (`pages.flatMap`, por alumno) | Calificar marca vieja la lista; con «Ver más alumnos» pendiente, la recarga trae las páginas cargadas y el conteo de la primera | «Ver más alumnos» al cargar lo último: la primera fila nueva o el `h2` «Participantes» (`useFocoAlCargarMas`). «Ver participación» de una fila que sale en una recarga: el `h2` «Participantes» (`useFocoAlEncabezadoSiSePierde(bloque, h2)`). La lista reemplazada (`404`, `403`, el cursor): la raíz (`useFocoAlPerderseElControl`). Otro foro u otra clase (historial): la raíz o el título de la clase (§7.14) |
+| Lo que escribió un alumno (`participante-view.tsx`) | `unirPaginasSinRepetidas` (`lib/unir-paginas.ts`; tiene `id`) | Nadie la escribe | «Ver más participaciones»: la primera nueva o el `h3` «Sus participaciones». Si desaparece en una recarga o por el cursor, el `h3`. La vista reemplazada: la raíz |
+| Devoluciones (`components/devoluciones.tsx`, en la participación y en "Tu participación") | `unirPaginasSinRepetidas` | Calificar con comentario invalida el bloque; con páginas pendientes, el comentario nuevo aparece al cargar la última página, sin repetidos | «Ver más comentarios»: el primer comentario nuevo o el `h3` del bloque. Si desaparece, el `h3` |
+| El panel de calificación | — | Escribe la participante (`exact`) | Tras un `409` con reinicio: el `h3` «Calificación» (`enfocarAlMontar`, como hoy). La clase que pasa a solo lectura: el `h1` de la clase (§7.32). La vista reemplazada: la raíz |
+
+- **`useFocoAlEncabezadoSiSePierde` se reutiliza** desde `features/tareas/hooks.ts` en los bloques nuevos de `features/tareas`.
+- **Ningún bloque de `features/calificaciones` lo necesita:** el gradebook y "Mis calificaciones" solo cambian a dónde lleva el enlace.
+- **No sube a `components/foco/` y no hay decisión para el humano.** Además, CAL-T-182 fija `components/foco` en tres archivos y está en "No se toca".
+- Lo prueba FORO-1E47, camino por camino: recarga, `409`, `404`, cursor y clase en solo lectura.
+
+### §E13.7. Avisos, exclusiones y textos de 01e (punto 6)
+**Por cada disparador, lo que ve la persona:**
+
+| Vista y disparador | Aviso | Excluido, y lo que ve en su lugar |
+|---|---|---|
+| "Participantes": primera carga | — | La vista se reemplaza por su `MensajeError` (`mensajeDeConsultaForo`: el texto de un error que reemplaza la vista o el genérico), como Entregas |
+| "Participantes": recarga de fondo con datos | **DH-20** | (b): la lista anterior, sin aviso |
+| "Participantes": «Ver más alumnos» con `5xx` o red | Uno, el genérico | El cursor: el texto de la lista cambiada, sin «Ver más alumnos». Lo que reemplaza la vista: la vista reemplazada. Lo que redirige: la pantalla de destino. La vista desmontada: nada |
+| La participación de un alumno: primera carga | — | La vista se reemplaza (`404 ALUMNO_NO_ENCONTRADO`, el foro `404`, `403`) |
+| La participación de un alumno: recarga con datos | «No pudimos actualizar la participación de este alumno. Mostramos la última versión que tenemos.» (§D-9), una vez por fallo | Lo que reemplaza la vista: la vista reemplazada |
+| Lo que escribió un alumno: primera carga | — | El bloque con su texto (**DH-19**) |
+| Lo que escribió un alumno: recarga con datos | **DH-19** | — |
+| Devoluciones (maestro y admin, y alumno): primera carga | — | El bloque con su texto (**DH-19**) |
+| Devoluciones: recarga con datos | **DH-19** | — |
+| «Ver más participaciones» o «Ver más comentarios» con `5xx` | Uno, el genérico | El cursor: su texto (§D-9), sin «Ver más» |
+| Calificar: éxito | «Calificación publicada» o «Calificación actualizada» | — |
+| Calificar: `409` | El texto del servidor (los de foro, §D-2.4) | — |
+| Calificar: la recarga tras el `409` que falla | **DH-19** (hoy «No pudimos cargar la entrega actual…» en la tarea) | Lo que reemplaza la vista: la vista reemplazada |
+| Calificar: error de un campo que el panel pinta | — | El `ErrorDeCampo` del campo |
+| Calificar: `VALIDACION` de un campo que no pinta, vacío o con ruta | Uno, con el texto sin la ruta o el genérico | — |
+| Calificar: `409 CLASE_ARCHIVADA` | El del servidor | La clase pasa a solo lectura: sin panel |
+| "Tu participación": la calificación | — | La calificación de §7.27 y, sin participación, **DH-19** |
+
+**DH-19, los textos que §D-9 no trae** (decisión del humano, §E13.15).
+
+### §E13.8. `VALIDACION` fuera de contrato y frases de recuperación (punto 7)
+- **El único formulario de 01e es el panel con un foro.** Sus casos: FORO-1E05 a FORO-1E09 y FORO-1E40.
+  - **(Enmienda 13)** FORO-1E05 suma el campo pintado solo en otro modo: `calificacion` en un foro con rúbrica (y `puntajes` en uno sin rúbrica, que ya estaba).
+  - FORO-1E09 recorre `ENTRADAS_FUERA_DE_CONTRATO` con la traducción del panel. La de los campos es `erroresDeCalificacionDeApi`, la misma de la tarea porque los campos son los mismos; la de los avisos, `mensajeDeErrorForo` (`foroId` → «Ese foro ya no existe.»).
+  - FORO-1E40 va con el panel de una tarea y con el de un foro, y cierra la fila de CHORE-06a (CH6-A14) en `ESTADO.md` §3.
+- **FORO-1E41 cierra la fila de ADMIN-01d1 y 01d2 (fila 33).** Cubre la tarea (`useCalificarEntrega`) y el foro (`useCalificarParticipacion`): un `409` de calificar que llega con la clase ya archivada, o con la vista desmontada, marca vieja la entrega o la participante sin pedirla, y al restaurar y volver a abrirla se pide.
+- **FORO-1E52 (lo abierto es del id)** suma el salto a la misma vista **de otra clase**, además del de otro foro y otro alumno.
+- **Frases de recuperación, un caso por camino** (con el router real y `app/providers.tsx`):
+  - «La lista de alumnos cambió… Vuelve a abrir Participantes…»: FORO-1E20 a FORO-1E22, y **(Enmienda 13)** FORO-1E54: «Ver más alumnos» no se ofrece mientras se ve el texto, y "Ver participantes" de otro foro y de vuelta.
+  - «Las participaciones de este alumno cambiaron… Vuelve a abrir su participación…»: FORO-1E23 a FORO-1E25, y FORO-1E54 («Ver más participaciones» no se ofrece).
+  - Los cursores de las devoluciones: FORO-1E27 a FORO-1E32, y FORO-1E54 («Ver más comentarios» no se ofrece).
+  - «No pudimos actualizar la participación de este alumno…»: FORO-1E33 y FORO-1E34.
+  - «…Inténtalo de nuevo.» de calificar: FORO-1E26.
+  - **(Enmienda 13)** El aviso de la recarga tras un `409` que falla (DH-19): FORO-1E55. Repetir «Calificar y devolver» manda el PUT con la versión de apertura, recibe el `409` otra vez y la recarga reinicia el panel. Volver a abrir la participación antes de 30 s la pide.
+  - **(Enmienda 13)** Los avisos de recarga de DH-19 y DH-20: FORO-1E49. El siguiente fallo vuelve a avisar, una lectura correcta lo quita y volver a abrir antes de 30 s pide.
+
+### §E13.9. Los casos nuevos de 01e (ids libres de la serie FORO-1E)
+- **FORO-1E41 (Enmienda 13):** tarea y foro, como dice §E13.8.
+- **FORO-1E42:** el admin borra una principal con "Participantes" y la participación de ese alumno en caché, sin observador.
+  - Las dos quedan con `isInvalidated` en `true`, sin pedirlas.
+  - Al volver antes de 30 s se piden, y el estado del alumno y lo que escribió son los nuevos.
+  - Se comprueba quitando la invalidación.
+- **FORO-1E43:** calificar una participación invalida y escribe lo de §E13.4 y nada más. `claveForo`, `claveParticipaciones` y lo que escribió el alumno quedan con `isInvalidated` en `false`. Las devoluciones, solo con comentario.
+- **FORO-1E44 (solo con DH-21 (a)):** agregar o quitar un alumno deja viejos "Participantes", las entregas de una tarea y el prefijo de calificaciones de esa clase, sin pedirlos si no se ven. Al volver se piden y el conteo es el nuevo.
+- **FORO-1E45:** las formas literales de §E13.5. Ninguna coincide con otra clave del foro ni es prefijo de una que no sea suya, con `alumnoId` igual a cada segmento fijo.
+- **FORO-1E46:** "Participantes" y la participación de un alumno, con `:foroId` y `:alumnoId` en mayúsculas o mezclados.
+  - Todas las lecturas salen en minúsculas.
+  - La `key` es la canónica.
+  - Calificar escribe en la clave que la vista lee: el panel nace con la respuesta, sin otra lectura.
+- **FORO-1E47:** el foco de §E13.6, camino por camino, en cada bloque. Nunca `<body>`.
+- **FORO-1E48 (N-34):**
+  - la primera carga fallida de cada bloque nuevo lo dice en su bloque, con su texto y sin aviso;
+  - "Tu participación" no pide «Comentarios de tu maestro» con `calificacion` en `null`;
+  - en una vista con datos, toda consulta de `alert` de las pruebas nuevas se acota a su bloque.
+  - **(Enmienda 13, corrección; N-43; R-01e-14)** Un caso por bloque («Comentarios de tu maestro», «Sus participaciones» y «Comentarios de la devolución»):
+    - con `404` del foro, `404 ALUMNO_NO_ENCONTRADO`, `403 SIN_ACCESO_A_LA_CLASE` o `VALIDACION` de `foroId:` o `alumnoId:` en el bloque, hay **una sola lectura lógica más** de la consulta principal (el foro o la participante, por su ruta exacta; con `retry: 1`, hasta dos peticiones, como aceptó FORO-1D42) y **ninguna repetición** de la lectura del bloque;
+    - si la principal responde ese error, la vista se reemplaza y queda un solo mensaje;
+    - con un servidor inconsistente (la principal responde bien y el bloque otra vez falla), las cuentas no suben después de reposar: **sin ciclo**;
+    - un `404 NO_ENCONTRADO` u otro código se queda en el bloque, sin pedir la principal;
+    - se comprueba quitando el `exact` (mutación real, restaurada): el caso del servidor inconsistente se pone en rojo.
+- **FORO-1E49:** los avisos de recarga con datos (DH-19 y DH-20), con sus tres caminos.
+- **FORO-1E51 (como FORO-1D51, en las listas de 01e):**
+  - «Ver más» que falla con `5xx`: la lista se queda, con un aviso;
+  - recarga de fondo que falla con datos: según DH-20 y DH-19;
+  - cursor vencido: el texto, sin «Ver más».
+- **FORO-1E54:** el control que falló no se ofrece mientras se ve la frase de un cursor, en las tres listas, y "Ver participantes" desde otro foro.
+- **FORO-1E55:** la recarga tras un `409` de calificar que falla, con sus caminos.
+
+**Dónde va cada uno:**
+- `participantes-01e.test.tsx`: FORO-1E42 a FORO-1E44, FORO-1E46 y FORO-1E47;
+- `vecinos-panel-01e.test.tsx`: FORO-1E41 y FORO-1E43;
+- `errores-calificar-foro-01e.test.tsx`: FORO-1E45 (en un `describe` aparte);
+- `recuperar-participantes-01e.test.tsx`: FORO-1E48, FORO-1E49, FORO-1E51, FORO-1E54 y FORO-1E55.
+
+No suman archivos.
+
+### §E13.10. N-39 (punto 8)
+- **Es el primer paso de 01e.** El comentario de `features/tareas/lib.ts:887-888` (`esParticipacionNoEncontrada`) dice que el bloque no avisa. Desde O-01d-2, avisa una vez por fallo con «Esa participación ya no existe.», en lugar del aviso de recarga fallida, y la lista se renueva.
+- Solo cambia el comentario. Ninguna prueba cambia.
+
+### §E13.11. `docs/DESIGN.md` (punto 9, A-06; 01e lo toca con la autorización del humano)
+**Texto propuesto de §7.34**, con la marca de origen "propuesta (FORO-01)". Lo que depende de lo que se implemente en 01e va marcado *(a confirmar en 01e)*, y el programador lo ajusta al árbol en su resumen:
+
+> ### 7.34 Foro (propuesta (FORO-01))
+>
+> Un foro es una actividad calificable (como una tarea, §7.20 y §7.27) en la que la clase participa por escrito.
+> - **La fila del foro en «Foro» (FORO-01c1):** la fila de §7.7, con dos diferencias. Al inicio del enlace va "Foro:" oculto (`rotulo`), en lugar de "Tarea:", y a la derecha, un complemento (`complemento`): para el alumno, la insignia de su estado (§7.8); para el maestro y el admin, «{n} participaciones», «1 participación» o «Sin participaciones», en `--text-small` y `--muted-foreground`. Sin `complemento` ni `rotulo`, la fila es la de §7.7. En la lista, «Crear foro» es la acción principal del maestro y del admin, y no se pinta en una clase archivada.
+> - **En «Actividades» (FORO-01d):** la fila del foro es la de §7.7 con "Foro:" oculto y, a la derecha, la insignia neutra «Foro» con `MessagesSquare`. Enlaza al foro. «Crear foro» (`outline`, `MessagesSquare`) va junto a «Crear tarea», que sigue siendo la única `primary`; no se pinta en una archivada. «Mover» funciona igual que el de una tarea.
+> - **El detalle del foro (FORO-01c2):** la composición de §7.20, con la insignia «Foro», el `h3` «Planteamiento» y la política del foro en «Detalles». Para el maestro y el admin, un panel «Participantes» con «Ver participantes» (`outline`) y las acciones del foro.
+> - **El panel «Participaciones» (FORO-01d):** un `Card` bajo el planteamiento, con el `h3` «Participaciones» (`tabIndex={-1}`) y «Lo que publiques aquí lo ve toda la clase.».
+>   - El alumno que puede participar ve «Escribe tu participación» y «Publicar participación», su acción principal. Antes del campo puede ir la nota de retraso, y si ya no puede participar, el texto de cerrado.
+>   - El admin ve «La administración puede leer este foro, pero no participar en él.».
+> - **Cada participación:** la lista va de la más antigua a la más reciente, con divisores de 1 px en `--border` (§7.25). Lleva la firma (`FirmaDelAutor`), la fecha y la hora en `--text-small` y `--muted-foreground`, «Tuya» si es propia, la insignia `warning` «Con retraso» con `Clock` (nunca solo color) y el texto plano.
+> - **El control de réplicas:** un solo botón que conserva el foco al cambiar de texto, con `aria-expanded`.
+>   - «Ver réplicas (n)» con una o más, y el conteo es el mayor entre el de la lista y lo que el bloque ya cargó.
+>   - «Replicar» sin réplicas, para quien puede replicar.
+>   - Desplegado, «Ocultar réplicas».
+>   - El admin, sin réplicas que leer, no ve control.
+> - **El bloque de réplicas:** su `h4` «Réplicas», oculto (`sr-only`, `tabIndex={-1}`), la lista ascendente con firma, fecha y hora y «Con retraso», «Ver más réplicas», y «Escribe tu réplica» con «Publicar réplica» (`outline`). El maestro replica siempre; el alumno, si puede; el admin, nunca. En una archivada no hay formulario.
+> - **Publicar:** lo nuevo aparece al final de lo cargado. Con páginas por cargar, al pulsar «Ver más» queda en su lugar, porque las listas se unen con la última aparición de cada fila. Una recarga antes de «Ver más» lo deja de mostrar hasta cargar más (O-01d-5).
+> - **«Borrar» (solo el admin, decidido por `puedeBorrar` del dato):** «Borrar» con el nombre oculto («participación de {nombre}», «réplica de {nombre}»), la confirmación en línea de §7.14 con sus textos y «Sí, borrar participación» o «Sí, borrar réplica». Al pedirla, el foco va a «Cancelar». Al borrar, va al mismo control de la vecina o a la vecina y, sin vecinas, al `h3` o al `h4` del bloque.
+> - **"Tu participación" (alumno):** un `Card` en la columna derecha, una región con el `h3` «Tu participación», la insignia de su estado y «Participaste el {fecha} a las {hh:mm}» («… con retraso») o «Todavía no participas.». Desde 01e, la calificación (§7.27, en lectura) y, si hay alguno, «Comentarios de tu maestro» *(a confirmar en 01e)*.
+> - **El foco cuando desaparece un control dentro de un bloque** (una recarga, un `409`, un `404`, la clase que pasa a solo lectura): va al encabezado de ese bloque (el `h3` «Participaciones», el `h4` «Réplicas» y, desde 01e, el `h3` de cada bloque de la participación de un alumno), nunca a `<body>`. La raíz de la vista queda para la vista reemplazada y para el salto a otro foro.
+> - **Errores y vacío:** «Aún no hay participaciones en este foro.».
+>   - La primera carga fallida de cada bloque dice su texto en el bloque, sin aviso («No pudimos cargar las participaciones.», «No pudimos cargar las réplicas.»).
+>   - Una recarga fallida con datos conserva lo que se ve y avisa una vez por fallo.
+>   - Si la principal desaparece mientras se ven sus réplicas, el aviso es «Esa participación ya no existe.» y la fila sale.
+>   - El cursor vencido dice su frase, sin «Ver más».
+> - **"Participantes" (FORO-01e, *(a confirmar en 01e)*):** §7.26 con los textos del foro: «Volver al foro», el `h2` «Participantes», «Participaron {n} de {m} alumnos.», las columnas «Alumno», «Estado», «Participó» y «Acciones», y «Ver participación» con el nombre oculto.
+> - **La participación de un alumno (FORO-01e, *(a confirmar en 01e)*):** §7.26 con «Volver a los participantes», su nombre en `h2` con su insignia, «Participó el …» o «Todavía no participa.». Debajo:
+>   - «Sus participaciones», lo que escribió, con «En respuesta a {nombre}» en sus réplicas;
+>   - el panel de §7.27 (maestro) o la calificación en lectura (admin);
+>   - «Comentarios de la devolución», en solo lectura.
+
+**Sumas a otras secciones** (con la marca "propuesta (FORO-01)"):
+- **§7.10, "Error de la página siguiente":** **(Enmienda 13, corrección; N-41)** "La lista de «Foro» sigue a Dudas. En `features/tareas`, las listas del foro conservan la lista también ante una recarga de fondo fallida, como Entregas, y además avisan una vez por fallo: las participaciones, las réplicas, lo que escribió un alumno y las devoluciones; «Participantes», según DH-20." La frase final se ajusta a lo que elija el humano en DH-20: con (b), «Participantes» conserva sin aviso, como Entregas. *Antes:* "…siguen a Entregas: conservan la lista también ante una recarga de fondo fallida, con un aviso por fallo." Era falso: Entregas conserva sin aviso (`entregas-view.tsx:116-117` y `:161`).
+- **§7.10, "Error":** "Un bloque dentro de una vista con datos (las participaciones, las réplicas, «Comentarios de tu maestro») dice el error de su primera carga en su propio `MensajeError`, con un texto propio."
+- **§7.14, "Lo abierto es de su clase":** suma «el foro, la participación y el participante».
+- **§7.14, nuevo párrafo "Foco al encabezado del bloque (FORO-01d, T-02)":** "Cuando desaparece el control que tenía el foco dentro de un bloque con encabezado propio (una recarga, un `409`, un `404`, la clase en solo lectura), el foco va a ese encabezado (`tabIndex={-1}`); la raíz queda para la vista reemplazada. Lo implementa `useFocoAlEncabezadoSiSePierde` (`features/tareas/hooks.ts`)."
+- **§7.14, regla de N-28 (FORO-01c1):** "Una recarga correcta que quita la fila enfocada de «Foro» lleva el foco al `h2` de la lista."
+- **§7.3 y §7.16:** "siete secciones", con «Foro» tercera.
+- **§7.8:** la insignia neutra «Foro» con `MessagesSquare`.
+- **§7.22:** la fila del foro y «Crear foro».
+
+### §E13.12. Los documentos del cierre del encargo (punto 10)
+Los aplica el orquestador con la autorización del humano, no el programador. Lo que ya estaba en A-01 a A-08 sigue. Esto lo completa:
+- **A-04 · `CLAUDE.md`, texto propuesto:**
+  - **Tabla de módulos, `clases`:** sumar al final de su celda "; la sección «Foro» (la lista de foros de la clase, con «Crear foro») y la fila del foro en «Actividades de aprendizaje» (FORO-01)".
+  - **`tareas`:** sumar "; el foro (FORO-01): crear y editar con el formulario de la tarea, su detalle con el planteamiento, las participaciones y las réplicas (publicar, replicar y, el administrador, borrar), «Tu participación», y «Participantes» y la participación de un alumno con el panel de calificación y las devoluciones".
+  - **`calificaciones`:** sumar "; desde FORO-01, la celda de un foro enlaza a la participación del alumno y "Mis calificaciones" a su foro (`conTipo=si`)".
+  - **"Ubicaciones compartidas", la entrada de `services/trabajoService.ts`:** sumar ", y las del foro (`clavePrefijoDeForos`, `claveListaDeForos`, `claveForo` y `consultaForo`; las de participaciones, réplicas, participantes y devoluciones viven en `features/tareas/lib.ts`)".
+- **A-01 · ESSENTIALS, A-02 · PRD y A-03 · `ARCHITECTURE.md` §7 y §14:** como están. Se suman al PRD, §6, «Participantes» y la participación de un alumno (01e).
+- **A-06 · `DESIGN.md`:** el texto de §E13.11.
+- **A-07 y A-08 · `ESTADO.md` §3:**
+  - se cierran la fila de ADMIN-01d1 y 01d2 en calificar (FORO-1E41; la ruta 20 de recursos sigue como riesgo) y la de CHORE-06a CH6-A14 (FORO-1E40);
+  - se suman N-40 (ya escrito por el manager), los «Borrar» sin nombre propio, los ids de la URL, el `errorElement` del router y, si el humano elige DH-21 (b), los alumnos agregados o quitados.
+- **`AGENTS.md`, reglas que proponen las lecciones de FORO-01** (lista de `ESTADO.md` §2, "Para el cierre del encargo"; las decide el humano al cierre). Texto propuesto para "Reglas del equipo":
+  > **Inventarios del plan (lecciones de FORO-01, decisión del humano, {fecha}).** Por subentrega, el arquitecto inventaría, además de las listas cerradas por grep:
+  > (1) las pruebas que leen el código, **empezando por las pruebas**: cada lista cerrada, cuenta o línea de las que leen `import.meta.glob`, `readFileSync` o `?raw`, contra los archivos nuevos y cambiados (también por los parámetros de tipo de `import.meta.glob`);
+  > (2) las pruebas que fijan una conducta con la vista desmontada, sin observador o por conteo de peticiones;
+  > (3) las mutaciones, también de **otros** módulos, que cambian lo que muestra una vista nueva, con la clave que invalidan y su alcance;
+  > (4) en las claves de caché, que ningún id de la URL ocupe la posición de un segmento fijo y que se armen con el id canónico, el mismo que devuelve el servidor;
+  > (5) en toda lista paginada que escribe la respuesta de una mutación, el caso con páginas pendientes y su regla de unión;
+  > (6) en todo bloque nuevo con controles, a dónde va el foco cuando un control desaparece por una recarga, un `409`, un `404` o la clase en solo lectura, no solo por su propia acción;
+  > (7) toda exclusión de un aviso dice qué ve la persona en su lugar;
+  > (8) un bloque nuevo que falla en su primera carga dentro de una vista con datos pinta un `alert`: las consultas de `alert` sobre todo el documento de las pruebas vigiladas se revisan;
+  > (9) en una sección con `key={claseId}`, el salto a la misma sección de otra clase es un camino propio de cada frase de recuperación.
+  > Motivo: las PARADAS y las rondas de FORO-01c2 y 01d (ADM-1D221, `.puedeBorrar`, T-01 a T-03 de 01c2, T-01 y T-02 de 01d, N-34 y O-01d-2).
+
+### §E13.13. La comprobación humana única (punto 11)
+Reemplaza a la de "Comprobación humana" (máximo 7 puntos y 10 minutos; lo demás queda "no verificada por decisión del humano, cubierta por pruebas automáticas"):
+1. «Foro», tercera de siete, con el indicador del control segmentado, a 360 px y en escritorio, en los tres roles.
+2. **(Enmienda 13, corrección; N-42)** «Participantes» y la participación de un alumno (lo que escribió, el panel y los comentarios de la devolución) a 360 px. *Antes:* "Como alumno, publicar una participación y una réplica con más de 20 de cada una…": nadie prepara esos datos y no cabe en 10 minutos.
+3. Con el teclado: el foco al publicar, y cuando desaparece una principal con sus réplicas abiertas. Debe salir un aviso, «Esa participación ya no existe.», y el foco quedar en «Participaciones» (O-01d-2).
+4. Con lector de pantalla, si se puede: cada «Borrar» del admin dice de quién es, y el bloque de réplicas se anuncia como «Réplicas».
+5. El panel «Participaciones» y el control de réplicas a 360 px.
+6. Como maestro, desde una celda del gradebook: «Participantes» con «Participaron n de m», calificar una participación con rúbrica y comentario, y volver.
+7. Como alumno: la calificación y «Comentarios de tu maestro» en «Tu participación».
+
+Salen, cubiertos por pruebas: el formulario de «Nuevo foro», la fecha y hora con «Con retraso» del maestro y el foro en una clase archivada.
+**(Enmienda 13, corrección; N-42)** También sale **O-01d-5** (publicar con más de 20, y la propia al final de lo cargado). Queda "no verificada por decisión del humano, cubierta por pruebas automáticas": ATQ-FORO-135, FORO-1D62 y los ataques de la ronda 2 de 01d.
+
+### §E13.14. El inventario de 01e (manda sobre §E7.5.6) y su conteo (punto 12)
+- **Se toca (17 de producción, o 18 con DH-21 (a)):** **(Enmienda 13, corrección; N-44)** Son **16 de producción**: 11 en `features/tareas`, 3 en `features/calificaciones`, `app/router.tsx` y `docs/DESIGN.md`. Hay que sumar uno si hace falta `features/calificaciones/hooks.ts` y otro con DH-21 (a). `features/calificaciones/data.ts` no entra (R-01e-7, opción (i)).
+  - en `features/tareas/`: `participantes-view.tsx`, `participante-view.tsx` y `components/devoluciones.tsx` (nuevos), `components/panel-de-calificacion.tsx`, `components/tabla-de-entregas.tsx`, `components/mi-participacion.tsx`, `foro-view.tsx` (el panel «Participantes»), `hooks.ts` (los ganchos nuevos, FORO-1E41 en `useCalificarEntrega` y FORO-1E42 en `useBorrarParticipacion`), `data.ts`, `lib.ts` (las claves, las rutas y N-39) y `types.ts`;
+  - en `features/calificaciones/`: `lib.ts`, `components/tabla-del-gradebook.tsx` y `components/lista-de-mis-calificaciones.tsx`. `hooks.ts` solo si hace falta, y si se toca, cuenta;
+  - `app/router.tsx`: las dos rutas del maestro y del admin; en la rama del estudiante, `participantes` lleva a `/login`;
+  - `docs/DESIGN.md` (A-06);
+  - con DH-21 (a): `features/clases/hooks.ts`, solo en `invalidarPersonasDeLaClase`.
+- **Pruebas nuevas (6):** las de §E7.5.6, con los casos de §E13.9.
+- **Lista cerrada (2):** `features/calificaciones/lib.test.ts:146-164` y `lib/estado-por-id-estatico-ch6.test.ts:114-126` (§E13.2).
+- **C-n (2, ronda 0 bis):** C-14 y C-16 (§E13.2).
+- **Vigiladas:** las de §E7.5.6, las de §E13.2 y §E13.3, y las de 01d: `participar-01d`, `replicas-01d`, `borrar-participacion-01d`, `recuperar-participaciones-01d`, `unir-paginas-del-foro-01d`, `foco-participaciones-01d` y `foros-01d-r1` y `-r2`.
+  - Lo único que 01e cambia de 01d es una invalidación más en `useBorrarParticipacion` (sobre una clave que esas pruebas no tienen) y lo que suma `MiParticipacion` con `calificacion` en `null`, que no pide nada (R-01e-11).
+  - Si una se pone roja, PARADA.
+- **Conteo:** **~27** = 17 + 6 + 2 + 2, o **~28** con DH-21 (a). Si el programador saca a un componente aparte lo que escribió un alumno, uno más (~29). No pasa de unos 30. **(Enmienda 13, corrección; N-44)** Queda **~26** = 16 + 6 + 2 + 2, o **~27** con DH-21 (a). Se suma uno por `features/calificaciones/hooks.ts`, si hace falta, y otro si lo que escribió un alumno va en un componente aparte. Con todo, ~29. No pasa de unos 30.
+- **Sin `shared/` ni `backend/`:** se corre solo la suite del frontend.
+
+### §E13.15. Para el humano
+| DH | Decisión | Opciones | Recomendación y por qué |
+|---|---|---|---|
+| **DH-19** | Los textos de 01e que §D-9 no trae | Aprobar o corregir:<br>(1) panel de un foro: ayuda del comentario «Se publica en los comentarios de la devolución.»; «Podrás calificar cuando el alumno participe o cuando se cierre el foro.»; «Este alumno no participó y el foro ya está cerrado.»;<br>(2) la recarga tras un `409` de calificar que falla: «No pudimos cargar la participación actual. Revisa tu conexión e inténtalo de nuevo.»;<br>(3) "Tu participación" calificada sin participar: «No participaste en este foro y ya está calificado.»;<br>(4) lo que escribió un alumno: «No pudimos cargar las participaciones de este alumno.» y «No pudimos actualizar las participaciones de este alumno. Mostramos la última versión que tenemos.»;<br>(5) las devoluciones, maestro y admin: «No pudimos cargar los comentarios de la devolución.» y «No pudimos actualizar los comentarios de la devolución. Mostramos la última versión que tenemos.»;<br>(6) alumno: «No pudimos cargar los comentarios de tu maestro.» y «No pudimos actualizar los comentarios de tu maestro. Mostramos la última versión que tenemos.» | **Aprobarlos.** Son los de la tarea y los de N-37 con «participación», «foro» y «devolución». Sin ellos, el panel diría «entrega» y «tarea» en un foro, y los bloques usarían el genérico, que N-37 ya descartó en 01d |
+| **DH-20** | Cuando falla la recarga de fondo de «Participantes» con datos | **(a)** Conserva la lista y avisa una vez por fallo: «No pudimos actualizar la lista de alumnos. Mostramos la última versión que tenemos.». **(b)** Como Entregas hoy: conserva la lista sin aviso | **(a).** Es lo que §D-8.4 (Enmienda 7) fijó para las listas del foro en `features/tareas` y lo que hacen las participaciones y las réplicas. Con (b), la persona ve datos viejos sin saberlo, y es la exclusión sin remedio que la lección de O-01d-2 pide evitar |
+| **DH-21** | Agregar o quitar un alumno no deja viejos «Participantes», las entregas de una tarea ni el gradebook (heredado de CLASES-02 y ENTREGAS-01e; se ve dentro de los 30 s de `staleTime`) | **(a)** En 01e, con tu autorización para `features/clases/hooks.ts` (hoy en "No se toca"): `invalidarPersonasDeLaClase` suma `invalidateQueries` de `["clases", claseId, "tareas"]` (las entregas), `clavePrefijoDeForos(claseId)` (los participantes) y `clavePrefijoDeCalificaciones(claseId)`. Un archivo y FORO-1E44. Las 22 pruebas que agregan o quitan alumnos no tienen esas claves en caché, así que no cambian (vigiladas). **(Enmienda 13, corrección; lo comprobó el manager)**:<br>• Se toca solo `invalidarPersonasDeLaClase` (`features/clases/hooks.ts:812-822`), que llaman `useAgregarAlumno` (`:849`) y `useQuitarAlumno`.<br>• Se suman tres `invalidateQueries` sin `exact`: `["clases", claseId, "tareas"]`, `clavePrefijoDeForos(claseId)` y `clavePrefijoDeCalificaciones(claseId)`.<br>• La única prueba que mira las invalidaciones al agregar, `features/clases/alumnos-view.test.tsx:223-226`, usa `toContainEqual`, así que sigue pasando (vigilada). `clases-admin-01c.test.tsx:330` es de archivar, borrar y duplicar.<br>• No hay otra prueba que inventariar: en «Personas» no hay entregas, gradebook ni foro observados.<br>• El prefijo de las tareas también marca viejo el detalle de cada tarea; sin observador, no pide nada.<br>• Pide tu autorización escrita para ese archivo, como en T-03, y la suite de `features/clases` (paso 43). **(b)** Declararlo en `ESTADO.md` §3, con destino el `chore` de retiro de compatibilidad e higiene, antes de DEPLOY | **(a).** Es el mismo tipo de hueco que T-03 de 01c2, que decidiste corregir al momento; son tres líneas en una función, y lo cierra también para Entregas y el gradebook |
+
+**Para aceptar:** las correcciones de hechos de §E13.1, que arbitró el manager y que puedes cambiar.
+
+### §E13.16. Los pasos de 01e (reemplazan los 32 a 36 de §E7.11)
+- **32.** N-39 (§E13.10).
+- **33.** Las claves y las rutas de §E13.5 (FORO-1E45) y los tipos.
+- **34.** `useBorrarParticipacion` con el prefijo de participantes (FORO-1E42) y FORO-1E41 en `useCalificarEntrega`.
+- **35.** Los ganchos nuevos: `useParticipantes`, `useParticipante`, `useParticipacionesDeAlumno`, `useDevoluciones`, `useMisDevoluciones` y `useCalificarParticipacion`, con §E13.4.
+- **36.** El panel con `actividad` (R-01e-1 y R-01e-5) y los textos de DH-19.
+- **37.** `ParticipantesView`, `ParticipanteView` y `Devoluciones`, con §E13.6 y §E13.7, y el router.
+- **38.** "Tu participación", con la calificación y R-01e-11, y el panel «Participantes» de `ForoView`.
+- **39.** `features/calificaciones`: `conTipo=si` y el enlace por tipo (R-01e-7).
+- **40.** Con DH-21 (a), `invalidarPersonasDeLaClase`.
+- **41.** Las pruebas de §E13.9 y la lista cerrada; la ronda 0 bis de C-14 y C-16, con las cifras y las líneas del resumen.
+- **42.** `DESIGN.md` (§E13.11).
+- **43.** `lint`, `build` y la suite de `src/features/tareas`, `src/features/calificaciones`, `src/lib`, `src/styles` y `src/app` (y `src/features/clases` con DH-21 (a)), una después de otra.
 
 ## §E12. Enmienda 12 (2026-11-16): los lectores de `.puedeBorrar` y las pruebas que leen el código (PARADA de 01d)
 
@@ -1438,6 +1936,13 @@ Los casos de "Pruebas requeridas" siguen como están escritos, con estos movimie
 
 #### §E7.5.6. 01e (base: el commit de 01d)
 **(Enmienda 8)** Suma C-16 (`lib/guardas-ch4-r1.ataque.test.ts`, ATQ-CH4-34, por `participante-view.tsx`; §E8.2) y el gancho `useVerMasConservandoLaLista` de 01d (§E8.4). Queda en ~27.
+**(Enmienda 13)** Manda §E13.14:
+- "Se toca" suma `useBorrarParticipacion` (FORO-1E42) y FORO-1E41 en `useCalificarEntrega`, dentro de `hooks.ts`, y, con DH-21 (a), `features/clases/hooks.ts`;
+- la lista cerrada de CH6-A30 (c) queda literal en §E13.2;
+- C-14 y C-16 van en la ronda 0 bis, con su forma en §E13.2;
+- hay vigiladas y restricciones nuevas (R-01e-1 a R-01e-13) y casos nuevos (§E13.9).
+
+Queda en ~27, o ~28 con DH-21 (a). **(Enmienda 13, corrección; N-44)** Queda en **~26**, o ~27 con DH-21 (a) (§E13.14).
 - **Se toca (17):**
   - en `features/tareas/`: `participantes-view.tsx`, `participante-view.tsx` y `components/devoluciones.tsx` (nuevos), `components/panel-de-calificacion.tsx` (la actividad, prop opcional), `components/tabla-de-entregas.tsx` (los textos por props opcionales), `components/mi-participacion.tsx`, `foro-view.tsx`, `hooks.ts`, `data.ts`, `lib.ts` y `types.ts`;
   - en `features/calificaciones/`: `lib.ts` (`conTipo=si`, `enlaceAParticipante` y `enlaceAForo`), `hooks.ts` (solo si hace falta), `components/tabla-del-gradebook.tsx` y `components/lista-de-mis-calificaciones.tsx`;
@@ -1580,6 +2085,8 @@ En la ronda 0 de cada subentrega, el tester hace la comprobación de arranque y 
 31. Las pruebas.
 
 **01e**
+
+**(Enmienda 13)** Los pasos 32 a 36 los reemplazan los 32 a 43 de §E13.16, empezando por N-39.
 
 32. `ParticipantesView`, `ParticipanteView`, `Devoluciones` y el panel con la actividad.
 33. La calificación en "Tu participación".
@@ -2252,7 +2759,7 @@ Va en un `Card` bajo el planteamiento, en `ForoView`, con el `h3` "Participacion
   - Si `miParticipacion.participarConRetraso` (del servidor, E1-1; el cliente no compara fechas), antes del campo: "La fecha límite ya pasó: tu participación quedará marcada con retraso.".
   - Si `!puedeParticipar` y no hay principal ni calificación: "La fecha límite ya pasó y este foro ya no recibe participaciones." en lugar del formulario.
   - Con la principal publicada, no hay formulario.
-  - Al publicar: aviso "Participación publicada"; se escriben `miParticipacion` y la primera página de la lista con la respuesta (sin pedirla otra vez) y se marcan viejos la lista de foros, el trabajo y el prefijo de calificaciones. El foco va a la participación nueva (`tabIndex={-1}`).
+  - Al publicar: aviso "Participación publicada"; se escriben `miParticipacion` y la primera página de la lista con la respuesta (sin pedirla otra vez) y se marcan viejos la lista de foros, el trabajo y el prefijo de calificaciones. El foco va a la participación nueva (`tabIndex={-1}`). **(Enmienda 13, §E13.1, puntos 1 y 2)** La respuesta se escribe **al final de lo cargado**, no en "la primera página", y las listas del foro se unen con la última aparición (`unirPaginasConLaUltimaAparicion`). Lo mismo vale para la réplica en su bloque. Si un control desaparece dentro de un bloque, el foco va a su encabezado (el `h3` «Participaciones» o el `h4` «Réplicas»), no a la raíz.
 - **Lista de principales** (`ParticipacionesDelForo`, del más antiguo al más reciente, divisores de 1 px como §7.25). Cada `ParticipacionDelForo` lleva:
   - Firma (`FirmaDelAutor`), fecha y hora (`--text-small`, `--muted-foreground`), "Tuya" (`sr-only` + texto en `--muted-foreground`) si `propia`, y la insignia "Con retraso" (`warning`, con icono, nunca solo color) si `conRetraso`.
   - El texto plano.
@@ -2271,7 +2778,8 @@ Va en un `Card` bajo el planteamiento, en `ForoView`, con el `h3` "Participacion
 - **Errores y vacío:**
   - Sin participaciones: "Aún no hay participaciones en este foro.".
   - El texto vacío o sin caracteres visibles: "Escribe tu participación" / "Escribe tu réplica" en `ErrorDeCampo`, sin pedir nada.
-  - `409 PARTICIPACION_YA_PUBLICADA`, `PARTICIPACION_CALIFICADA` o `FORO_CERRADO`: un aviso con el texto del servidor, lo escrito se conserva y se vuelve a pedir `miParticipacion` (el formulario desaparece si ya no aplica) y la lista.
+  - `409 PARTICIPACION_YA_PUBLICADA`, `PARTICIPACION_CALIFICADA` o `FORO_CERRADO`: un aviso con el texto del servidor, lo escrito se conserva y se vuelve a pedir `miParticipacion` (el formulario desaparece si ya no aplica) y la lista. **(Enmienda 13, §E13.1, punto 3)** Lo escrito se conserva solo mientras el formulario siga en pantalla. Si el `409` lo quita, se pierde y queda el aviso.
+  - **(Enmienda 13, §E13.1, punto 4; O-01d-2)** Si la principal desaparece mientras se ven sus réplicas: un aviso, «Esa participación ya no existe.», una vez por fallo, y la fila sale. El aviso de recarga de las réplicas queda para los demás fallos con datos, y dos bloques que fallan dan dos avisos.
   - `404 PARTICIPACION_NO_ENCONTRADA` al replicar: un aviso y se renueva la lista.
   - El `404` del foro reemplaza la vista (§7.20).
   - Cursor vencido: la lista dice "Las participaciones cambiaron mientras las veías. Vuelve a abrir el foro para verlas completas." y el bloque, "Las réplicas cambiaron mientras las veías. Vuelve a abrirlas para verlas completas."; los dos sin "Ver más" mientras se ven, y la consulta sale de la caché.
@@ -2279,6 +2787,14 @@ Va en un `Card` bajo el planteamiento, en `ForoView`, con el `h3` "Participacion
   - **(Enmienda 7)** Es el patrón de Entregas (`entregas-view.tsx:98-114`, `DESIGN.md` §7.10), con el aviso "una vez por fallo" guardado por consulta. Los «Ver más» llevan `enEspera={isFetching}`, `fetchNextPage({ cancelRefetch: false })`, guarda con ref y el foco de `useFocoAlCargarMas`, sin leer `isFetchingNextPage`. Cada participación lleva `key={participacion.id}`, y su bloque, su réplica escrita y su confirmación de "Borrar" son de ella (§E7.3, "Frontend", puntos 3 a 5).
 
 #### §D-8.5. Calificar, la devolución y los enlaces (01e)
+
+**(Enmienda 13)** Manda §E13:
+- las claves, en §E13.5;
+- lo que invalida calificar y con qué `exact`, en §E13.4;
+- las listas y el foco, en §E13.6;
+- los avisos y los textos, en §E13.7 y DH-19;
+- «Comentarios de tu maestro» se pide solo con calificación (R-01e-11);
+- `useCalificarParticipacion` es un gancho propio, y el panel lo elige sin hooks condicionales (R-01e-1).
 
 - **`ParticipantesView`** (`participantes-view.tsx`): §7.26 con `listarEntregas` del foro.
   - "Volver al foro", `h2` "Participantes" (E1-10), el título del foro y "Participaron 12 de 30 alumnos." ("de 1 alumno").
@@ -2330,6 +2846,10 @@ Los cinco valen también para el foro, que usa los mismos componentes y el mismo
 | E7 (complemento de DH-12, §E7.8) | Editor de categorías: "Tiene {n} actividades." / "Tiene 1 actividad." (hoy "Tiene {n} tareas.") y "Esta clase no tiene categorías. Sus actividades se califican por puntos." (hoy "…Sus tareas…") |
 | Backend | Los de §D-2.3 y §D-2.4 |
 
+**(Enmienda 13)** Faltaban:
+- los textos de 01d que ya están en `features/tareas/data.ts:528-575` (§E13.1, punto 5): los de N-37, el aviso de las réplicas, el `h4` «Réplicas» oculto, los nombres ocultos de «Borrar» y los textos de borrar;
+- los de 01e que §D-9 no trae: DH-19 y DH-20 (§E13.15).
+
 ### §D-10. Matriz de avisos y recargas esperada
 
 El programador la confirma o la corrige en el primer resumen de cada subentrega con interfaz (`AGENTS.md`, "Matriz de avisos y recargas"), y completa los estados "en vuelo a la vez" y "con la vista desmontada" de cada fila.
@@ -2367,6 +2887,15 @@ El programador la confirma o la corrige en el primer resumen de cada subentrega 
 | 01e | `ParticipanteView` | "Publicar calificación" | Como §7.27 (campos pintados del panel; los no pintados, vacíos o con ruta: un aviso; FORO-1E05 a FORO-1E09) | `ENTREGA_MODIFICADA` / `RUBRICA_MODIFICADA` / `ENTREGA_NO_CALIFICABLE`: aviso, descarta y recarga (§7.27) | Un aviso; lo escrito se conserva | Éxito: participante (respuesta), participantes, prefijo de calificaciones, lista de foros y, con comentario, devoluciones | §7.27 |
 
 > **(Corrección de la ronda 2 de 01c2, T-03; 2026-11-16)** "Sin cambio" ya no es cierto: `useMoverElemento` (`features/clases/hooks.ts`) hoy solo invalida `claveTarea(claseId, publicacionId)` y `claveRecurso`, que no alcanzan el foro. En 01d invalida también `claveForo(claseId, publicacionId)` (el id de la publicación es el de los datos, ya canónico), y un caso de 01d, con el id que le dé el arquitecto, lo prueba con el detalle del foro en caché (marcado viejo y pedido al volver). El hueco hermano, que renombrar o borrar un tema y guardar las categorías no marcaran viejo el detalle del foro, lo cerró 01c2 con la autorización del humano (T-03): esas tres mutaciones invalidan `clavePrefijoDeForos(claseId)`.
+
+**(Enmienda 13) Correcciones de hechos de las filas de 01d (§E13.1), y las de 01e (§E13.4, §E13.6 y §E13.7):**
+- **"Publicar participación", "Se renueva":** la respuesta va al final de lo cargado, no en "la primera página", con la unión por la última aparición. **"5xx":** lo escrito se conserva mientras el formulario siga en pantalla.
+- **"Abrir réplicas…":** el `404 PARTICIPACION_NO_ENCONTRADA` al recargar con datos da un aviso, «Esa participación ya no existe.» (O-01d-2), una vez por fallo, y la fila sale. Los demás fallos de recarga con datos avisan «No pudimos actualizar las réplicas. Mostramos la última versión que tenemos.». Dos bloques, dos avisos. **"Foco":** el `h4` «Réplicas».
+- **Consulta `mi-participacion`, "Foco":** si se pierde el formulario enfocado, el `h3` «Participaciones», no la raíz. La raíz queda para la vista reemplazada y el salto a otro foro.
+- **Filas de 01e:**
+  - "Participantes" y la participación de un alumno siguen §E13.7, y su foco, §E13.6.
+  - "Publicar calificación", "Se renueva": la participante (escrita, `exact`), la lista de participantes, el prefijo de calificaciones, la lista de foros y, con comentario, las devoluciones (`exact`). Nada más (§E13.4).
+  - El `409`, además, marca vieja la participante sin pedirla (FORO-1E41).
 
 ### §D-11. Borrar participaciones y réplicas (DH-05 del humano; 01a2; E3-3)
 
@@ -2825,6 +3354,13 @@ Los ids llevan el prefijo del encargo y de la subentrega (`FORO-1A…` a `FORO-1
 
 ### 01e (frontend)
 
+**(Enmienda 13)** Además de los casos de abajo y de §E7.4:
+- FORO-1E41 cubre la tarea y el foro;
+- FORO-1E05 suma `calificacion` en un foro con rúbrica;
+- FORO-1E52 suma el salto a otra clase;
+- casos nuevos: FORO-1E42 a FORO-1E49, FORO-1E51, FORO-1E54 y FORO-1E55, con su archivo, en §E13.9;
+- toda prueba nueva cumple R-01e-8 (el reloj) y acota sus consultas de `alert` (FORO-1E48).
+
 **Participantes y participante (`features/tareas/participantes-01e.test.tsx`)**
 - FORO-1E01: la lista (conteo, tabla, "Ver participación", "Ver más alumnos" y su cursor).
 - FORO-1E02: la participante para maestro (panel) y admin (lectura): sus participaciones con "En respuesta a", fecha y hora y "Con retraso"; las devoluciones de solo lectura.
@@ -3113,8 +3649,9 @@ Todo lo de esta sección vale para 01a1 sin cambio. Los C-1 y C-2 que el tester 
   - `clases` suma "la sección Foro (lista de foros)".
   - `tareas` suma "foro: crear y editar con el formulario de la tarea, detalle con participaciones y réplicas, participaciones de un foro y la de un alumno con el panel de calificación".
   - `calificaciones`: los enlaces por tipo.
+  - **(Enmienda 13)** El texto literal para `CLAUDE.md` está en §E13.12.
 - **A-05 · `backend/src/adapters/README.md` y `handlers/README.md`:** en 01b, dentro de la subentrega.
-- **A-06 · DESIGN.md:** en 01e. §7.32 "Foro (propuesta (FORO-01c/d/e))": la lista, el detalle, las participaciones, el control de réplicas y las vistas del maestro. La insignia "Foro" en §7.8 y §7.22. "Siete" en §7.3 y §7.16. **(Enmienda 7)** El patrón va en **§7.34**, porque §7.32 y §7.33 son de ADMIN-01. Además, §7.10 suma a la lista de los que lo implementan la lista de foros (el patrón de Dudas) y las listas del foro de `features/tareas` (el de Entregas), y §7.14, "Lo abierto es de su clase", nombra el foro, la participación y el participante.
+- **A-06 · DESIGN.md:** en 01e. §7.32 "Foro (propuesta (FORO-01c/d/e))": la lista, el detalle, las participaciones, el control de réplicas y las vistas del maestro. La insignia "Foro" en §7.8 y §7.22. "Siete" en §7.3 y §7.16. **(Enmienda 7)** El patrón va en **§7.34**, porque §7.32 y §7.33 son de ADMIN-01. Además, §7.10 suma a la lista de los que lo implementan la lista de foros (el patrón de Dudas) y las listas del foro de `features/tareas` (el de Entregas), y §7.14, "Lo abierto es de su clase", nombra el foro, la participación y el participante. **(Enmienda 13)** Texto propuesto de §7.34 y de las sumas a §7.3, §7.8, §7.10, §7.14, §7.16 y §7.22, en §E13.11.
 - **A-07 · ESTADO §3:**
   - **Se cierran:** S-03 (fila 470), la fila 331 (hermanos de 03d) y la 332 (PR-1A17).
   - **Se actualizan:** O-3 (quitar "probablemente FORO-01") y O-r1-2 (solo el carril trivial).
@@ -3132,6 +3669,7 @@ Todo lo de esta sección vale para 01a1 sin cambio. Los C-1 y C-2 que el tester 
 - **A-10 · ESTADO:** los conteos finales de pruebas (de la corrida del manager).
 
 ## Comprobación humana (máximo 7 puntos, 10 minutos, al final de 01e)
+**(Enmienda 13)** La reemplaza la de §E13.13, que suma lo que pidió el manager en 01d: más de 20 (O-01d-5), el foco con teclado (O-01d-2), los nombres ocultos de «Borrar» y el panel a 360 px. La lista de abajo queda como historial. **(Enmienda 13, corrección; N-42)** O-01d-5 sale de la comprobación, cubierta por pruebas, y en su lugar entran «Participantes» y la participación de un alumno a 360 px.
 1. La sección "Foro" en tercera posición y el indicador del control segmentado a 360 px y en escritorio (tres roles).
 2. El formulario de "Nuevo foro": rótulos, "Planteamiento" y la ausencia de "Cómo se entrega".
 3. El detalle del foro como alumno: publicar su participación y replicar, con el control de réplicas.
@@ -3372,3 +3910,24 @@ Origen: la PARADA del programador en 01d. `features/clases/estatico-02c-r1.ataqu
 | E12-3 | Avisos para 01e | §E12.3 (nueva) | Las listas cerradas en las que 01e meterá archivos o cambios, y repetir §E12.2 antes de su ronda 0 |
 | E12-4 | C-13 | §E12.4 (nueva); §E7.5.5 (C-13) | De 91 a 96 `enEspera=`, con las cifras por archivo comprobadas en el árbol y el texto literal (título, `toHaveLength`, comentario y `fijos`) |
 | E12-5 | Conteo | §E12.5 (nueva) | 01d: de ~27 a ~28 (una `*.ataque` más). No pasa de unos 30 |
+
+## Enmienda 13 — tabla de cambios (2026-11-17)
+
+Origen: "Revisión final — FORO-01d (2026-11-17)" de `revision.md` (puntos 4, 6 y 7), su arbitraje y su verificación de T-01 y T-02, y las rondas 1 y 2 de FORO-01d del tester, con 01d cerrada en `24916a4`. Copia previa de `plan.md`: SHA-256 `f8cd4767…` (la guardó el orquestador). No cambian ids existentes ni decisiones del humano.
+
+| E13-n | Origen | Secciones | Qué cambió |
+|---|---|---|---|
+| E13-1 | Lo que el manager arbitró en 01d | §E13.1 (nueva); notas en §D-8.4, §D-9 y §D-10 | Publicar escribe al final de lo cargado, con la unión por la última aparición; el foco va al encabezado del bloque; lo escrito se conserva mientras el formulario siga en pantalla; O-01d-2; los textos de 01d que §D-9 no traía |
+| E13-2 | Punto 1: las pruebas que leen el código | §E13.2 (nueva) | Las 48, desde las pruebas, contra los archivos de 01e. C-14 y C-16 con su forma para la ronda 0 bis, la lista cerrada de CH6-A30 (c) literal y R-01e-1 a R-01e-10 |
+| E13-3 | Punto 2: vista desmontada, conteos y `alert` | §E13.3 (nueva) | Ninguna prueba más cambia. R-01e-11 («Comentarios de tu maestro» solo con calificación), R-01e-12 y R-01e-13 |
+| E13-4 | Punto 3: las mutaciones | §E13.4 (nueva); §E7.5.6 (nota) | `useBorrarParticipacion` suma el prefijo de participantes (FORO-1E42). Calificar invalida lo justo, con su `exact`. Agregar y quitar un alumno, a DH-21 |
+| E13-5 | Punto 4: las claves | §E13.5 (nueva); §D-8.5 (nota) | Seis claves literales en `features/tareas/lib.ts`, la forma de las de entregas, con ids canónicos y la Forma C |
+| E13-6 | Punto 5: listas y foco | §E13.6 (nueva) | Ninguna lista nueva recibe escrituras. La unión de cada una y el foco, camino por camino. `useFocoAlEncabezadoSiSePierde` no sube a `components/foco/` |
+| E13-7 | Puntos 6 y 7 | §E13.7 y §E13.8 (nuevas); "Pruebas requeridas", 01e (nota) | Cada aviso y cada exclusión, con lo que ve la persona. FORO-1E41 cubre la tarea y el foro. FORO-1E05 y FORO-1E52 ampliados. Casos por cada frase de recuperación nueva |
+| E13-8 | Casos nuevos | §E13.9 (nueva) | FORO-1E42 a FORO-1E49, FORO-1E51, FORO-1E54 y FORO-1E55, con su archivo |
+| E13-9 | Punto 8 | §E13.10 (nueva) | N-39, el primer paso de 01e |
+| E13-10 | Punto 9 | §E13.11 (nueva); A-06 (nota) | El texto propuesto de `DESIGN.md` §7.34 y sus sumas a §7.3, §7.8, §7.10, §7.14, §7.16 y §7.22 |
+| E13-11 | Punto 10 | §E13.12 (nueva); A-04 (nota) | `CLAUDE.md` literal, los cierres y altas de `ESTADO.md` §3 y la regla propuesta para `AGENTS.md` con las nueve lecciones de FORO-01 |
+| E13-12 | Punto 11 | §E13.13 (nueva); "Comprobación humana" (nota) | Siete puntos, con O-01d-5, O-01d-2, los nombres ocultos y 360 px |
+| E13-13 | Punto 12 y "Para el humano" | §E13.14, §E13.15 y §E13.16 (nuevas); §E7.11 (nota) | 01e: ~27, o ~28 con DH-21 (a). Sin `shared/` ni `backend/`. DH-19 (textos), DH-20 (la recarga de «Participantes») y DH-21 (agregar y quitar un alumno). Los pasos 32 a 43 |
+| E13-14 | Corrección tras la verificación de la Enmienda 13 (`revision.md`, "Verificación de la Enmienda 13 — FORO-01e"): N-41 a N-45 y DH-21 | §E13.11 (§7.10); §E13.13 y "Comprobación humana" (nota); §E13.3 (R-01e-14); §E13.9 (FORO-1E48); §E13.2 (R-01e-7); §E13.14 y §E7.5.6 (conteo); §E13.1 (punto 5); §E13.4; §E13.15 (DH-21) | **N-41:** la suma a §7.10 ya no dice que Entregas avisa. **N-42:** sale O-01d-5 (cubierto por pruebas) y entran «Participantes» y la participación de un alumno a 360 px. **N-43:** R-01e-14, con `pedirDeNuevoSoloLaParticipante` y su gancho, y sus casos en FORO-1E48. **N-44:** "Se toca" son 16, y 01e queda en ~26 (~27 con DH-21 (a)); R-01e-7 con la opción (i): el enlace reutiliza los textos de hoy y `features/calificaciones/data.ts` no entra. **N-45:** los textos de borrar están en §D-11, y FORO-1E42 cumple lo que §D-11 pedía. **DH-21 (a):** lo que comprobó el manager |

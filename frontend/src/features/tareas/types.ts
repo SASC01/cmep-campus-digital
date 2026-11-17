@@ -3,9 +3,14 @@ import type {
   CriterioDeRubrica,
   CrearTarea,
   ForoDetalle,
+  ListaComentariosPrivadosRespuesta,
   TareaDetalle,
 } from "@campus/shared"
-import type { QueryObserverResult } from "@tanstack/react-query"
+import type {
+  InfiniteData,
+  QueryObserverResult,
+  UseInfiniteQueryResult,
+} from "@tanstack/react-query"
 
 import type { ErroresFormulario } from "@/lib/errores-de-api"
 
@@ -30,7 +35,9 @@ export type {
   FilaDeEntrega,
   ForoDetalle,
   ListaComentariosPrivadosRespuesta,
+  ListaParticipacionesDeAlumnoRespuesta,
   ListaParticipacionesRespuesta,
+  ParticipacionDeAlumno,
   ListaReplicasRespuesta,
   MiParticipacionRespuesta,
   Participacion,
@@ -151,4 +158,32 @@ export interface OpcionesDeVerMas {
 export interface VariablesDeBorrarParticipacion {
   participacionId: string
   principalId: string | null
+}
+
+// FORO-01e (§D-8.5): el panel de calificación con un foro (sin la prop, el de la tarea).
+export interface ActividadDelPanel {
+  tipo: "foro"
+  id: string
+}
+
+// FORO-01e: los textos de la tabla de entregas que cambian con la actividad (las columnas y el enlace).
+export interface TextosDeLaTablaDeEntregas {
+  columnas: { alumno: string; estado: string; entregada: string; acciones: string }
+  verEntrega: string
+  sinFecha: string
+}
+
+// FORO-01e (§E13.6): la consulta de un bloque de comentarios de la devolución (la de un alumno o la del
+// alumno que mira), inferida de TanStack Query.
+export type ConsultaDeDevoluciones = UseInfiniteQueryResult<
+  InfiniteData<ListaComentariosPrivadosRespuesta>
+>
+
+// Los textos de un bloque de comentarios de la devolución (vacio: null si el bloque no se pinta vacío).
+export interface TextosDeDevoluciones {
+  titulo: string
+  vacio: string | null
+  errorAlCargar: string
+  recargaFallida: string
+  cambioMientrasLosVeias: string
 }

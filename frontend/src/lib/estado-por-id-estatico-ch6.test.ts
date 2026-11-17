@@ -123,5 +123,10 @@ describe("CH6-A30 · lo abierto es del id de la ruta (regla estática)", () => {
     // cada tarea; key={alumnoId} sola no basta.
     const keyCompuesta = ["key={`", "$", "{tareaId}:", "$", "{alumnoId}`}"].join("")
     expect(textoDe("tareas/entrega-de-alumno-view.tsx")).toContain(keyCompuesta)
+    // FORO-01e (§E7.5.6 y §E13.2): la lista de participantes, por el foro; la participación de un alumno,
+    // por el foro y el alumno juntos (el mismo alumno participa en cada foro).
+    expect(textoDe("tareas/participantes-view.tsx")).toContain("key={foroId}")
+    const keyDelParticipante = ["key={`", "$", "{foroId}:", "$", "{alumnoId}`}"].join("")
+    expect(textoDe("tareas/participante-view.tsx")).toContain(keyDelParticipante)
   })
 })

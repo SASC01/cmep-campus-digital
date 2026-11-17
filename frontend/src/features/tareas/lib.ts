@@ -31,6 +31,7 @@ import {
   CODIGOS_QUE_REEMPLAZAN_LA_VISTA,
   CODIGOS_QUE_REEMPLAZAN_LA_VISTA_DEL_FORO,
   LIMITE_DE_ENTREGAS,
+  LIMITE_DE_PARTICIPANTES,
   MENSAJES_ERROR_FORO,
   LIMITE_DE_PARTICIPACIONES,
   LIMITE_DE_REPLICAS,
@@ -46,6 +47,8 @@ import {
   TEXTOS_FORMULARIO_TAREA,
   TEXTOS_MI_PARTICIPACION,
   TEXTOS_PARTICIPACIONES,
+  TEXTOS_PARTICIPANTE,
+  TEXTOS_PARTICIPANTES,
   TEXTOS_TU_TRABAJO,
   TRADUCCION_DE_ERRORES_FORO,
   TRADUCCION_DE_ERRORES_TAREAS,
@@ -884,8 +887,9 @@ export const unirPaginasConLaUltimaAparicion = <T extends { id: string }>(
   return filas.filter((fila, indice) => ultima.get(fila.id) === indice)
 }
 
-// M-12: la principal ya no existe (404 PARTICIPACION_NO_ENCONTRADA); el bloque no avisa de una recarga
-// fallida, porque la lista se renueva y la fila sale.
+// M-12 y O-01d-2: la principal ya no existe (404 PARTICIPACION_NO_ENCONTRADA). Ante una recarga con datos,
+// el bloque de réplicas avisa una vez por fallo «Esa participación ya no existe.» (no el aviso de recarga
+// fallida) y la lista se renueva, así que la fila sale.
 export const esParticipacionNoEncontrada = (error: unknown): boolean =>
   esApiError(error) && error.codigo === "PARTICIPACION_NO_ENCONTRADA"
 
@@ -895,3 +899,97 @@ export const textoDelErrorDeLasReplicas = (error: unknown): string =>
   esApiError(error) && error.codigo === "PARTICIPACION_NO_ENCONTRADA"
     ? MENSAJES_ERROR_FORO.participacionNoEncontrada
     : TEXTOS_PARTICIPACIONES.errorAlCargarReplicas
+
+// FORO-01e (§E13.5): las claves de «Participantes» y de la participación de un alumno, con su forma
+// literal, como las de las entregas de una tarea (`"lista"` y `"alumno"`). Cuelgan de claveForo; ningún id
+// ocupa la posición de un segmento fijo bajo el mismo padre (alumnoId va solo detrás de "alumno").
+// claveParticipante es prefijo de lo que escribió el alumno y de sus devoluciones: donde solo cambia la
+// participante (calificar, el 409) se escribe y se invalida con exact.
+export const clavePrefijoDeParticipantes = (claseId: string, foroId: string) =>
+  [...claveForo(claseId, foroId), "participantes"] as const
+export const claveListaDeParticipantes = (claseId: string, foroId: string) =>
+  [...clavePrefijoDeParticipantes(claseId, foroId), "lista"] as const
+export const claveParticipante = (claseId: string, foroId: string, alumnoId: string) =>
+  [...clavePrefijoDeParticipantes(claseId, foroId), "alumno", alumnoId] as const
+export const claveParticipacionesDeAlumno = (claseId: string, foroId: string, alumnoId: string) =>
+  [...claveParticipante(claseId, foroId, alumnoId), "participaciones"] as const
+export const claveDevoluciones = (claseId: string, foroId: string, alumnoId: string) =>
+  [...claveParticipante(claseId, foroId, alumnoId), "devoluciones"] as const
+export const claveMisDevoluciones = (claseId: string, foroId: string) =>
+  [...claveMiParticipacion(claseId, foroId), "devoluciones"] as const
+
+// FORO-01e (§D-3.1, rutas 7 y 12 a 16). foroId y alumnoId son los canónicos de la vista.
+const rutaDeLosParticipantes = (claseId: string, foroId: string): string =>
+  `${rutaDelForo(claseId, foroId)}/participantes`
+
+export const rutaDePaginaDeParticipantes = (
+  claseId: string,
+  foroId: string,
+  cursor: string | undefined,
+): string => conPagina(rutaDeLosParticipantes(claseId, foroId), LIMITE_DE_PARTICIPANTES, cursor)
+
+export const rutaDeParticipante = (claseId: string, foroId: string, alumnoId: string): string =>
+  `${rutaDeLosParticipantes(claseId, foroId)}/${alumnoId}`
+
+export const rutaDePaginaDeParticipacionesDeAlumno = (
+  claseId: string,
+  foroId: string,
+  alumnoId: string,
+  cursor: string | undefined,
+): string =>
+  conPagina(
+    `${rutaDeParticipante(claseId, foroId, alumnoId)}/participaciones`,
+    LIMITE_DE_PARTICIPACIONES,
+    cursor,
+  )
+
+export const rutaDePaginaDeDevoluciones = (
+  claseId: string,
+  foroId: string,
+  alumnoId: string,
+  cursor: string | undefined,
+): string =>
+  conPagina(
+    `${rutaDeParticipante(claseId, foroId, alumnoId)}/devoluciones`,
+    LIMITE_DEL_HILO,
+    cursor,
+  )
+
+export const rutaDePaginaDeMisDevoluciones = (
+  claseId: string,
+  foroId: string,
+  cursor: string | undefined,
+): string =>
+  conPagina(`${rutaDeMiParticipacion(claseId, foroId)}/devoluciones`, LIMITE_DEL_HILO, cursor)
+
+export const rutaDeCalificacionDeParticipante = (
+  claseId: string,
+  foroId: string,
+  alumnoId: string,
+): string => `${rutaDeParticipante(claseId, foroId, alumnoId)}/calificacion`
+
+// Los destinos de la interfaz, desde la base de la clase de la perspectiva actual.
+export const enlaceAlForo = (base: string, foroId: string): string => `${base}/foros/${foroId}`
+
+export const enlaceAParticipantes = (base: string, foroId: string): string =>
+  `${enlaceAlForo(base, foroId)}/participantes`
+
+export const enlaceAParticipante = (base: string, foroId: string, alumnoId: string): string =>
+  `${enlaceAParticipantes(base, foroId)}/${alumnoId}`
+
+// «Participaron 12 de 30 alumnos.» con lo que dice la página más reciente (como conteoDeEntregas).
+export const conteoDeParticipantes = (
+  paginas: readonly { entregadas: number; total: number }[],
+): string | null => {
+  const ultima = paginas.at(-1)
+  if (ultima === undefined) return null
+  return TEXTOS_PARTICIPANTES.conteo(ultima.entregadas, ultima.total)
+}
+
+// «Participó el lunes 3 de noviembre a las 14:30» o «Todavía no participa.», en la hora local.
+export const fraseDeParticipante = (entrega: { fechaEntrega: string | null }): string => {
+  if (entrega.fechaEntrega === null) return TEXTOS_PARTICIPANTE.todaviaNoParticipa
+  const fecha = new Date(entrega.fechaEntrega)
+  if (Number.isNaN(fecha.getTime())) return TEXTOS_PARTICIPANTE.todaviaNoParticipa
+  return TEXTOS_PARTICIPANTE.participo(formatearFechaLarga(fecha), horaLocal(fecha))
+}

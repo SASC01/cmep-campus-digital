@@ -15,7 +15,7 @@ import { formatearFechaHora } from "@/lib/format"
 
 import { TEXTOS_ENTREGAS } from "../data"
 import { enlaceAEntregaDeAlumno } from "../lib"
-import type { FilaDeEntrega } from "../types"
+import type { FilaDeEntrega, TextosDeLaTablaDeEntregas } from "../types"
 
 interface TablaDeEntregasProps {
   filas: readonly FilaDeEntrega[]
@@ -23,6 +23,10 @@ interface TablaDeEntregasProps {
   fechaLimite: string
   base: string
   tareaId: string
+  // FORO-01e (§D-8.5): «Participantes» usa la tabla con los textos del foro y el enlace a la participación
+  // de cada alumno. Sin ellos, los de la entrega de una tarea, como hoy.
+  textos?: TextosDeLaTablaDeEntregas
+  destinoDeFila?: (alumnoId: string) => string
 }
 
 // ENTREGAS-01e (§D-10.2, DESIGN.md §7.26 y §8): la tabla de entregas de una tarea, opaca dentro del
@@ -30,17 +34,24 @@ interface TablaDeEntregasProps {
 // Columnas: alumno, estado (con texto, EstadoEntregaBadge), fecha de entrega o "—" y "Ver entrega" con
 // el nombre del alumno como texto sr-only. Cada fila lleva el id del alumno para que "Ver más alumnos"
 // pueda llevar el foco a la primera fila nueva (§7.14).
-export function TablaDeEntregas({ filas, fechaLimite, base, tareaId }: TablaDeEntregasProps) {
+export function TablaDeEntregas({
+  filas,
+  fechaLimite,
+  base,
+  tareaId,
+  textos = TEXTOS_ENTREGAS,
+  destinoDeFila = (alumnoId) => enlaceAEntregaDeAlumno(base, tareaId, alumnoId),
+}: TablaDeEntregasProps) {
   const ahora = new Date()
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>{TEXTOS_ENTREGAS.columnas.alumno}</TableHead>
-          <TableHead>{TEXTOS_ENTREGAS.columnas.estado}</TableHead>
-          <TableHead>{TEXTOS_ENTREGAS.columnas.entregada}</TableHead>
-          <TableHead>{TEXTOS_ENTREGAS.columnas.acciones}</TableHead>
+          <TableHead>{textos.columnas.alumno}</TableHead>
+          <TableHead>{textos.columnas.estado}</TableHead>
+          <TableHead>{textos.columnas.entregada}</TableHead>
+          <TableHead>{textos.columnas.acciones}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -51,16 +62,14 @@ export function TablaDeEntregas({ filas, fechaLimite, base, tareaId }: TablaDeEn
               <EstadoEntregaBadge estado={estadoDeEntregaVisible(fila, fechaLimite, ahora)} />
             </TableCell>
             <TableCell>
-              {fila.fechaEntrega === null
-                ? TEXTOS_ENTREGAS.sinFecha
-                : formatearFechaHora(fila.fechaEntrega)}
+              {fila.fechaEntrega === null ? textos.sinFecha : formatearFechaHora(fila.fechaEntrega)}
             </TableCell>
             <TableCell>
               <Link
-                to={enlaceAEntregaDeAlumno(base, tareaId, fila.alumno.id)}
+                to={destinoDeFila(fila.alumno.id)}
                 className={buttonVariants({ variant: "outline", size: "sm" })}
               >
-                {TEXTOS_ENTREGAS.verEntrega} <span className="sr-only">{fila.alumno.nombre}</span>
+                {textos.verEntrega} <span className="sr-only">{fila.alumno.nombre}</span>
               </Link>
             </TableCell>
           </TableRow>

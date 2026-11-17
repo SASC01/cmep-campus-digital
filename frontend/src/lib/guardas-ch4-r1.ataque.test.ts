@@ -119,6 +119,9 @@ describe("ataque CHORE-04 r1 · formas de llamar a una mutación que la regla es
         "/src/features/tareas/editar-foro-view.tsx: const resultado = await consulta.refetch()",
         "/src/features/tareas/entrega-de-alumno-view.tsx: consulta.refetch(),",
         "/src/features/tareas/entrega-de-alumno-view.tsx: recargaLaTareaTrasConflicto(error) ? tarea.refetch() : Promise.resolve(null),",
+        // FORO-01e ronda 0 bis (C-16, §E8.2 y §E13.2): la participación de un alumno tiene la forma de la entrega de un alumno (la recarga tras un 409 de calificar, dentro de un manejador que ya guarda su ref).
+        "/src/features/tareas/participante-view.tsx: consulta.refetch(),",
+        "/src/features/tareas/participante-view.tsx: recargaLaTareaTrasConflicto(error) ? foro.refetch() : Promise.resolve(null),",
         // Cancela a propósito la petición previa del orden por sección.
         "/src/features/clases/hooks.ts: if (peticionPrevia) await temas.refetch({ cancelRefetch: true })",
       ].sort(),

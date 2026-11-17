@@ -147,19 +147,19 @@ describe("rutas, celdas, motivos y ventanas del módulo (§D-13.2)", () => {
   it("rutaDelGradebook lleva los dos tamaños y solo los cursores que hay", () => {
     const limites = { limite: 25, limiteTareas: 20 }
     expect(rutaDelGradebook(CLASE_ID, { cursor: null, cursorTareas: null }, limites)).toBe(
-      `/api/clases/${CLASE_ID}/gradebook?limite=25&limiteTareas=20`,
+      `/api/clases/${CLASE_ID}/gradebook?limite=25&limiteTareas=20&conTipo=si`,
     )
     expect(rutaDelGradebook(CLASE_ID, { cursor: "a", cursorTareas: "t" }, limites)).toBe(
-      `/api/clases/${CLASE_ID}/gradebook?limite=25&limiteTareas=20&cursor=a&cursorTareas=t`,
+      `/api/clases/${CLASE_ID}/gradebook?limite=25&limiteTareas=20&conTipo=si&cursor=a&cursorTareas=t`,
     )
   })
 
   it("rutaDeMisCalificaciones lleva el filtro, el tamaño y el cursor si lo hay", () => {
     expect(rutaDeMisCalificaciones(CLASE_ID, "calificadas", undefined, 20)).toBe(
-      `/api/clases/${CLASE_ID}/mis-calificaciones?estado=calificadas&limite=20`,
+      `/api/clases/${CLASE_ID}/mis-calificaciones?estado=calificadas&limite=20&conTipo=si`,
     )
     expect(rutaDeMisCalificaciones(CLASE_ID, "sin-entregar", "c", 20)).toBe(
-      `/api/clases/${CLASE_ID}/mis-calificaciones?estado=sin-entregar&limite=20&cursor=c`,
+      `/api/clases/${CLASE_ID}/mis-calificaciones?estado=sin-entregar&limite=20&conTipo=si&cursor=c`,
     )
   })
 

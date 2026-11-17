@@ -62,6 +62,7 @@ import { esClaseArchivada } from "@/components/clase/lib"
 import { useFocoAlPerderseElControl } from "@/components/foco/hooks"
 import { consultaMe } from "@/services/sesionService"
 import { api, esApiError } from "@/services/apiClient"
+import { clavePrefijoDeCalificaciones } from "@/services/calificacionesService"
 import {
   claveCategorias,
   claveForo,
@@ -809,6 +810,9 @@ export const useCandidatos = (claseId: string, termino: string) =>
 
 // Tras agregar o quitar, el roster, el buscador (el "Ya está en la clase" de cada fila), los
 // compañeros de esa clase y el contador de alumnos de "Mis clases" quedan al día.
+// FORO-01e (DH-21 a, decisión del humano 2026-11-17): también cambian quiénes aparecen en las entregas de
+// cada tarea, en «Participantes» de cada foro y en el gradebook de la clase; se marcan viejos por prefijo
+// (sin observador no se pide nada; al volver se piden).
 const invalidarPersonasDeLaClase = async (
   queryClient: ReturnType<typeof useQueryClient>,
   claseId: string,
@@ -818,6 +822,9 @@ const invalidarPersonasDeLaClase = async (
     queryClient.invalidateQueries({ queryKey: claveCandidatos(claseId) }),
     queryClient.invalidateQueries({ queryKey: clavePersonas(claseId) }),
     queryClient.invalidateQueries({ queryKey: CLAVE_CLASES_IMPARTIDAS }),
+    queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
+    queryClient.invalidateQueries({ queryKey: clavePrefijoDeForos(claseId) }),
+    queryClient.invalidateQueries({ queryKey: clavePrefijoDeCalificaciones(claseId) }),
   ])
 }
 

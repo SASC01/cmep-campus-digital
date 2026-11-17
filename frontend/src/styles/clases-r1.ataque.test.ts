@@ -215,14 +215,19 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // participacion-del-foro.tsx y mi-participacion.tsx (0). Sigue protegiendo lo mismo: ningún
   // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
   // botones con espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 96 enEspera", () => {
+  // FORO-01e ronda 0 bis (C-14, §E7.5.6 y §E13.2): de 96 a 99 enEspera=. Entran participantes-view.tsx
+  // (1: «Ver más alumnos»), participante-view.tsx (1: «Ver más participaciones») y
+  // components/devoluciones.tsx (1: «Ver más comentarios»). Sigue protegiendo lo mismo: ningún
+  // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
+  // botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 99 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(96)
+    expect(usos).toHaveLength(99)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -397,6 +402,11 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/tareas/components/replicas-de-participacion.tsx": 3,
       "/src/features/tareas/components/participacion-del-foro.tsx": 0,
       "/src/features/tareas/components/mi-participacion.tsx": 0,
+      // FORO-01e ronda 0 bis (C-14, §E13.2): los «Ver más» de «Participantes», de la participación de
+      // un alumno y de los comentarios de la devolución.
+      "/src/features/tareas/participantes-view.tsx": 1,
+      "/src/features/tareas/participante-view.tsx": 1,
+      "/src/features/tareas/components/devoluciones.tsx": 1,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)

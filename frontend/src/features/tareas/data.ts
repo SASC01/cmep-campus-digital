@@ -591,3 +591,104 @@ export const CODIGOS_DE_CONFLICTO_DE_PARTICIPACION: readonly string[] = [
   "PARTICIPACION_CALIFICADA",
   "FORO_CERRADO",
 ]
+
+// FORO-01e (§D-8.5, §D-9 con E1-10 y E1-11, §E13.7): «Participantes» y la participación de un alumno, para
+// sus maestros y el admin. Se piden de 20 en 20, como las entregas de una tarea.
+export const LIMITE_DE_PARTICIPANTES = 20
+
+export const TEXTOS_PARTICIPANTES = {
+  panel: "Participantes",
+  verParticipantes: "Ver participantes",
+  titulo: "Participantes",
+  volverAlForo: "Volver al foro",
+  conteo: (participaron: number, total: number) =>
+    total === 1
+      ? `Participaron ${participaron} de 1 alumno.`
+      : `Participaron ${participaron} de ${total} alumnos.`,
+  cargando: "Cargando las participaciones…",
+  vacio: "Aún no hay alumnos en esta clase.",
+  verMas: "Ver más alumnos",
+  cambioMientrasLaVeias:
+    "La lista de alumnos cambió mientras la veías. Vuelve a abrir Participantes para verla completa.",
+  // DH-20 (a), decisión del humano (2026-11-17).
+  recargaFallida:
+    "No pudimos actualizar la lista de alumnos. Mostramos la última versión que tenemos.",
+} as const
+
+// Las columnas y el enlace de la tabla de entregas con los textos del foro (TablaDeEntregas, por props).
+export const TEXTOS_DE_LA_TABLA_DE_PARTICIPANTES = {
+  columnas: {
+    alumno: "Alumno",
+    estado: "Estado",
+    entregada: "Participó",
+    acciones: "Acciones",
+  },
+  verEntrega: "Ver participación",
+  sinFecha: "—",
+} as const
+
+export const TEXTOS_PARTICIPANTE = {
+  volver: "Volver a los participantes",
+  // DH-22 (decisión del humano, 2026-11-17): la carga de la vista y la lista vacía de lo que escribió.
+  cargando: "Cargando la participación…",
+  sinParticipaciones: "Aún no hay participaciones de este alumno.",
+  participo: (fecha: string, hora: string) => `Participó el ${fecha} a las ${hora}`,
+  todaviaNoParticipa: "Todavía no participa.",
+  recargaFallida:
+    "No pudimos actualizar la participación de este alumno. Mostramos la última versión que tenemos.",
+  susParticipaciones: "Sus participaciones",
+  enRespuestaA: "En respuesta a",
+  verMas: "Ver más participaciones",
+  cambioMientrasLasVeias:
+    "Las participaciones de este alumno cambiaron mientras las veías. Vuelve a abrir su participación para verlas completas.",
+  // DH-19 (4), decisión del humano (2026-11-17).
+  errorAlCargar: "No pudimos cargar las participaciones de este alumno.",
+  recargaFallidaDeLoQueEscribio:
+    "No pudimos actualizar las participaciones de este alumno. Mostramos la última versión que tenemos.",
+} as const
+
+// Los comentarios de la devolución: los de un alumno para sus maestros y el admin, y «Comentarios de tu
+// maestro» para el alumno (§D-9, E1-11; DH-19 (5) y (6)).
+export const TEXTOS_DEVOLUCIONES = {
+  deLaParticipante: {
+    titulo: "Comentarios de la devolución",
+    vacio: "Aún no hay comentarios de la devolución.",
+    errorAlCargar: "No pudimos cargar los comentarios de la devolución.",
+    recargaFallida:
+      "No pudimos actualizar los comentarios de la devolución. Mostramos la última versión que tenemos.",
+    cambioMientrasLosVeias:
+      "Los comentarios de la devolución cambiaron mientras los veías. Vuelve a abrir su participación para verlos completos.",
+  },
+  deTuMaestro: {
+    titulo: "Comentarios de tu maestro",
+    vacio: null,
+    errorAlCargar: "No pudimos cargar los comentarios de tu maestro.",
+    recargaFallida:
+      "No pudimos actualizar los comentarios de tu maestro. Mostramos la última versión que tenemos.",
+    cambioMientrasLosVeias:
+      "Los comentarios de tu maestro cambiaron mientras los veías. Vuelve a abrir el foro para verlos completos.",
+  },
+  verMas: "Ver más comentarios",
+} as const
+
+// El panel de calificación según la actividad (DH-19 (1) y (2)): sin actividad, los textos de la tarea.
+export const TEXTOS_DEL_PANEL_POR_TIPO = {
+  tarea: {
+    ayudaComentario: TEXTOS_CALIFICAR.ayudaComentario,
+    podrasCalificar: TEXTOS_CALIFICAR.podrasCalificar,
+    notaSinEntrega: TEXTOS_CALIFICAR.notaSinEntrega,
+    avisoRecargaFallida: TEXTOS_CALIFICAR.avisoRecargaFallida,
+  },
+  foro: {
+    ayudaComentario: "Se publica en los comentarios de la devolución.",
+    podrasCalificar: "Podrás calificar cuando el alumno participe o cuando se cierre el foro.",
+    notaSinEntrega: "Este alumno no participó y el foro ya está cerrado.",
+    avisoRecargaFallida:
+      "No pudimos cargar la participación actual. Revisa tu conexión e inténtalo de nuevo.",
+  },
+} as const
+
+// «Tu participación» calificada sin haber participado (DH-19 (3)).
+export const TEXTOS_MI_CALIFICACION_DEL_FORO = {
+  sinParticipar: "No participaste en este foro y ya está calificado.",
+} as const

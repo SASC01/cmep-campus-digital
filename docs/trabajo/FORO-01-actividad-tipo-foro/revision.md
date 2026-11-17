@@ -3744,3 +3744,1103 @@ Todo puede cambiarlo el humano. Ninguna de estas decisiones crea textos nuevos: 
    - que lo escrito se pierda cuando el formulario ya no aplica.
 5. **La suite completa del frontend está en verde.** No cambia el backend ni `shared/`.
 6. **El commit lleva 37 rutas** y deja fuera el documento de DEPLOY. Sigue 01e: calificar el foro y las vistas de participantes.
+
+
+## Verificación de la Enmienda 13 — FORO-01e (2026-11-17)
+
+**Veredicto: CAMBIOS REQUERIDOS** (cortos: N-41 a N-44, y un detalle, N-45).
+- El diff solo trae lo declarado.
+- §E13.1 dice exactamente lo que arbitré en 01d.
+- Los inventarios, las claves y la mayoría de las restricciones están bien.
+- Faltan cuatro precisiones que, sin ellas, darían una PARADA o una ronda del tester. Son de texto del plan, sin decisiones nuevas.
+
+Revisión de plan, por lectura del plan y del árbol `24916a4`; no edité nada ni corrí suites.
+
+### 1. El diff
+- **Archivos:** `plan.md` tiene 3870 líneas (SHA-256 `534e410a…`); la copia previa, 3374 (`f8cd4767…`, con la Enmienda 12). La base es `24916a4` (01d).
+- **Diff:** `git diff --no-index` da **499 inserciones y 3 líneas reemplazadas, en 14 hunks**, como el cotejo del orquestador.
+- **Las tres líneas reemplazadas conservan su texto entero y solo suman su nota "(Enmienda 13…)":**
+  - "Al publicar…" de §D-8.4 (`:2700`);
+  - la de los `409` (`:2719`), con una línea nueva para O-01d-2 (`:2720`);
+  - A-06 (`:3592`).
+- **Nada más cambia:** ni ids existentes, ni decisiones del humano, ni subentregas cerradas.
+- **Los casos nuevos usan ids libres:** FORO-1E42 a FORO-1E49, FORO-1E51, FORO-1E54 y FORO-1E55 no existían. Los de antes eran FORO-1E01 a FORO-1E14, FORO-1E20 a FORO-1E35, FORO-1E40, FORO-1E41, FORO-1E50, FORO-1E52 y FORO-1E53.
+
+### 2. §E13.1, las correcciones de hechos de 01d
+Dicen lo que arbitré, sin sumar ni quitar:
+- (1) la unión por la última aparición (T-01, opción b);
+- (2) el foco al encabezado del bloque (T-02);
+- (3) "lo escrito se conserva" solo con el formulario en pantalla;
+- (4) O-01d-2, con la exclusión del aviso de recarga y "dos bloques, dos avisos";
+- (5) los textos de 01d.
+
+**N-45 (detalle):** el punto 5 dice que los textos de borrar ("Se borrará con sus réplicas…", "Sí, borrar participación", "Participación borrada"…) son de los que "§D-9 no traía". En realidad están en §D-11 (`plan.md:2910-2912`), aprobados con el plan. Basta con corregir la frase.
+
+§D-11 ya pedía, al borrar, renovar "el prefijo … de participantes (la entrega pudo cambiar)". FORO-1E42 lo cumple ahora, porque en 01d esa clave no existía. Conviene que §E13.4 lo diga, para que se vea que no es una regla nueva.
+
+### 3. §E13.2 y §E13.3, las pruebas que leen el código y las de conducta
+- **El inventario de los 48 está completo.** Son los mismos de §E12.2, que comprobé con el árbol de 01d. Lo que pediste revisar:
+  - **Las tres estáticas de `features/calificaciones`:** CAL-1D09 cuenta **los doce archivos de producción** (`estatico-01d.test.ts:58`); hoy son 6 en la raíz del módulo y 6 en `components/`. 01e no crea ninguno en producción, por R-01e-7, y la prueba nueva `foro-01e.test.tsx` no cuenta. Bien.
+  - **`estatico-02c-r1`:** ninguna vista de 01e lee `.puedeBorrar` ni `.administracion` (R-01e-3). Bien.
+  - **`EXCEPCIONES` de CH4-01:** el panel conserva su `calificar.mutateAsync` dentro de su propio manejador guardado (`panel-de-calificacion.tsx:103`). Llamar a los dos ganchos sin condiciones y usar uno según la actividad (R-01e-1) no suma ninguna llamada nueva fuera de manejadores, así que `EXCEPCIONES` no cambia. Bien.
+  - **Los `ByRole("alert")` en todo el documento** de la entrega de un alumno, el gradebook y "Mis calificaciones": 01e no suma `alert` en esas vistas. El panel de una tarea queda igual (R-01e-12), y el gradebook y "Mis calificaciones" solo cambian el enlace. En `ForoView`, «Comentarios de tu maestro» no se pide sin calificación (R-01e-11), y ningún doble de 01c2 ni de 01d trae calificación. Bien.
+- **R-01e-1 a R-01e-13** se pueden cumplir a la vez con lo que pide §D-8.5, salvo dos huecos: N-43 (la regla de N-36 en los bloques de 01e) y N-44 (R-01e-7 frente a §E9.4).
+
+- **N-43 (cambio requerido): la regla de R-01d-3 (N-36) no está escrita para los bloques de 01e.**
+  - En 01d, cada lectura de un bloque que recibe un error que reemplaza la vista vuelve a pedir **solo** la consulta principal de su vista (`exact`), una vez por fallo nuevo, sin ciclo (`pedirDeNuevoSoloElForo`, FORO-1D42).
+  - §E13 lo nombra solo para calificar (§E13.4, "Lo demás"). Los bloques nuevos tienen la misma forma:
+    - «Comentarios de tu maestro», dentro de `ForoView`;
+    - «Sus participaciones» y «Comentarios de la devolución», dentro de `ParticipanteView`.
+  - Sin la regla escrita, un `404 ALUMNO_NO_ENCONTRADO`, el `404` del foro o un `403` en un bloque se quedarían en el bloque con un `alert` propio (y luego el de la vista, que serían dos), o volverían a pedir con prefijo y formarían el ciclo de N-36.
+  - **Remedio:** sumar **R-01e-14**:
+    - en `ForoView`, «Comentarios de tu maestro» sigue R-01d-3 con `pedirDeNuevoSoloElForo`;
+    - en `ParticipanteView`, «Sus participaciones» y «Comentarios de la devolución» ante un error que reemplaza su vista (`errorQueReemplazaLaVistaDelForo`, que ya cubre `ALUMNO_NO_ENCONTRADO`) vuelven a pedir **solo** la participante (`claveParticipante`, `exact`), una vez por fallo nuevo, y su respuesta decide si la vista se reemplaza;
+    - el bloque no repite el texto.
+    - Sumar a FORO-1E48 un caso por bloque, con el servidor inconsistente y sin ciclo, y la mutación que quita el `exact`.
+    - El gancho `usePedirElForoAnteUnFalloNuevo` de 01d puede generalizarse a "la consulta principal de la vista". Si cambia su firma, que lo diga el plan (R-01d-5 era de 01d).
+
+### 4. §E13.4 a §E13.6: mutaciones, claves y foco
+- **Las mutaciones:** la tabla está completa para lo que muestran las vistas de 01e en la sesión de quien las mira. Lo que cambia en otra sesión (el alumno que ve su calificación, el maestro que ve una réplica nueva) llega por la recarga de esa sesión.
+  - **El `exact` de cada invalidación de calificar es correcto:**
+    - la participante se escribe con `exact`, porque es prefijo de lo que escribió y de las devoluciones;
+    - las devoluciones, con `exact` y solo con comentario;
+    - la lista de participantes y el prefijo de calificaciones, sin `exact`, porque son prefijos de páginas.
+  - **FORO-1E42**, borrar suma el prefijo de participantes sin `exact`: es correcto y es lo que ya pedía §D-11.
+- **Las seis claves (§E13.5):**
+  - ningún id comparte posición con un segmento fijo bajo el mismo padre;
+  - `alumnoId` va solo detrás de `"alumno"`, y `"participantes"`, `"mia"` y `"replicas"` (posición 5) no chocan;
+  - `claveMisDevoluciones` cuelga de `claveMiParticipacion`, y la nota sobre `renovarTrasErrorDeLaParticipacion` (una lectura más, inocua) es cierta;
+  - los ids canónicos y la Forma C de `ParticipanteView` siguen la nota (b) de 01d.
+
+  **Bien.**
+- **El foco, camino por camino (§E13.6):**
+  - los destinos son coherentes con lo arbitrado en 01d: el `h2` «Participantes», el `h3` de cada bloque, la raíz para la vista reemplazada y el título de la clase al cambiar de clase;
+  - reutilizar `useFocoAlEncabezadoSiSePierde` desde `features/tareas` es correcto (N-40), y no sube a `components/foco/`, que tiene tres archivos fijos (CAL-T-182);
+  - FORO-1E47 lo prueba.
+
+  **Bien.**
+
+### 5. §E13.7 a §E13.9: avisos, exclusiones y casos
+- **Cada aviso y cada exclusión dice qué ve la persona.** Las que dependen de DH-19 y DH-20 quedan marcadas.
+- **Los casos nuevos** están bien definidos y tienen su archivo. FORO-1E45 vive en `errores-calificar-foro-01e.test.tsx`, en un `describe` aparte: es un archivo raro para un caso de claves, pero no suma archivos y se acepta.
+- **FORO-1E40 cierra la fila de CHORE-06a CH6-A14** (`ESTADO.md:352`): queda solo el panel de calificación, con la tarea y el foro.
+- **FORO-1E41 cierra la parte de calificar** de la fila de ADMIN-01d1 y 01d2 (`:378`). La ruta 20 de recursos sigue como riesgo declarado, como dice §E13.12. Bien.
+
+### 6. §E13.11 a §E13.13: `DESIGN.md`, documentos y la comprobación humana
+- **El texto de §7.34:**
+  - sigue el estilo del documento, con viñetas, tokens y la marca de origen "propuesta (FORO-01)";
+  - describe los patrones nuevos de 01c1 a 01e: la fila con complemento, «Actividades», el detalle, el panel de participaciones, cada participación, el control y el bloque de réplicas, publicar con páginas pendientes, «Borrar» del admin, "Tu participación", el foco al encabezado, los errores, "Participantes" y la participación de un alumno;
+  - marca bien lo que se confirma en 01e.
+- **N-41 (cambio requerido): la suma a §7.10, "Error de la página siguiente", se contradice.**
+  - Dice que las listas del foro de `features/tareas` "siguen a Entregas: conservan la lista también ante una recarga de fondo fallida, **con un aviso por fallo**". Pero Entregas conserva **sin** aviso: es justo la opción (b) de DH-20.
+  - **Remedio:** "conservan la lista también ante una recarga de fondo fallida, como Entregas, y además avisan una vez por fallo (las participaciones, las réplicas, lo que escribió un alumno y las devoluciones; «Participantes», según DH-20)". La frase final depende de lo que elija el humano en DH-20.
+- **Los documentos del cierre (§E13.12):**
+  - el texto de `CLAUDE.md` y lo de `ESTADO.md` §3 cuadran con lo arbitrado (N-40, los «Borrar» sin nombre, los ids de la URL y el `errorElement`);
+  - la regla propuesta para `AGENTS.md` recoge las nueve lecciones de forma fiel; la decide el humano al cierre.
+- **N-42 (cambio requerido): la comprobación humana tiene 7 puntos, pero el punto 2 no cabe en 10 minutos.**
+  - "Publicar … con más de 20 de cada una" necesita un foro con más de 20 participaciones y más de 20 réplicas de otras personas.
+  - No hay un seed para eso, y armarlo a mano lleva más de 10 minutos.
+  - Además, el orden y O-01d-5 ya los cubren las pruebas (ATQ-FORO-135, FORO-1D62 y los ataques de la ronda 2 de 01d).
+  - **Remedio:**
+    - sacar el punto 2 a "no verificada por decisión del humano, cubierta por pruebas automáticas";
+    - o decir quién prepara los datos y cómo (por ejemplo, un script de prueba que el humano corre), sin que cuente en los 10 minutos.
+
+    Recomiendo sacarlo. En su lugar puede ir algo que las pruebas no ven: el aspecto de «Participantes» y de la participación de un alumno a 360 px.
+
+### 7. §E13.15, las decisiones para el humano
+- **DH-19, los textos: estoy de acuerdo con aprobarlos.**
+  - Son los de la tarea y los de N-37, con «participación», «foro» y «devolución».
+  - El de la recarga tras un `409` es literal al de la tarea («No pudimos cargar la entrega actual. Revisa tu conexión e inténtalo de nuevo.», `features/tareas/data.ts:237`).
+  - Están bien planteados.
+- **DH-20, la recarga fallida de «Participantes»: estoy de acuerdo con (a)**, avisar una vez por fallo.
+  - Es lo que §E7.3, punto 5, pide a las listas del foro de `features/tareas`.
+  - Es lo que hacen las participaciones y las réplicas.
+  - Con (b), la persona ve datos viejos sin saberlo (la lección de O-01d-2).
+- **DH-21, agregar o quitar un alumno: estoy de acuerdo con (a).** Lo comprobé:
+  - **Qué se toca:** solo `invalidarPersonasDeLaClase` (`features/clases/hooks.ts:812-822`), que hoy invalida alumnos, candidatos, personas e impartidas, y que llaman `useAgregarAlumno` (`:849`) y `useQuitarAlumno`. Suma tres `invalidateQueries` sin `exact`: `["clases", claseId, "tareas"]`, `clavePrefijoDeForos(claseId)` y `clavePrefijoDeCalificaciones(claseId)`.
+  - **Las pruebas que cuentan invalidaciones tras agregar o quitar:** la única es `features/clases/alumnos-view.test.tsx:223-226` (agregar), que usa `toContainEqual` con tres claves. Sumar claves no la cambia.
+    - `clases-admin-01c.test.tsx:330` también lee las invalidaciones, pero es de archivar, borrar y duplicar, no de agregar alumnos, y usa `toContain`.
+    - No encontré ninguna que cuente peticiones después de agregar o quitar con esas claves activas: en «Personas» no hay entregas, ni gradebook, ni foro observados.
+    - **No hace falta inventariar ninguna prueba más.** Basta con que la enmienda nombre `alumnos-view.test.tsx:223-226` como vigilada.
+  - **El alcance de `["clases", claseId, "tareas"]`** marca también el detalle de cada tarea. Sin observador solo los marca viejos y no pide nada.
+  - **Lo que pide:** la autorización escrita del humano para ese archivo, como en T-03, y correr la suite de `features/clases` (está en el paso 43).
+  - **Por qué (a):** es un hueco del mismo tipo que T-03 de 01c2, son tres líneas, y cierra también el dato viejo de Entregas y del gradebook. Con (b) queda declarado, pero lo ve toda persona que agregue o quite un alumno y vaya a calificar antes de 30 segundos.
+
+### 8. Conteo y regla de mandato
+- **N-44 (cambio requerido): la cuenta de "Se toca" y R-01e-7 no cuadran.**
+  - **La cuenta:** la lista de §E13.14 nombra 16 archivos de producción (11 en `features/tareas`, 3 en `features/calificaciones`, `app/router.tsx` y `docs/DESIGN.md`), y el texto dice 17. Si el 17 es `features/calificaciones/hooks.ts` ("solo si hace falta"), hay que decirlo. Si no, la cuenta es 16, y 01e queda en **~26** (o ~27 con DH-21 (a)).
+  - **R-01e-7 frente a §E9.4:** R-01e-7 dice que "el texto del enlace de un foro, y su parte oculta, salen de `data.ts`". §E9.4 dice que "el enlace por tipo no suma textos; si hiciera falta uno, PARADA, porque `features/calificaciones/data.ts` no está en 'Se toca'". Hoy el enlace de la tarea no tiene textos propios en `data.ts`: lo arma `tabla-del-gradebook.tsx` con `textoDeCelda` y la columna.
+  - **Remedio:** que la enmienda diga cuál de las dos:
+    - **(i)** el enlace del foro reutiliza los textos de hoy (y R-01e-7 se corrige);
+    - **(ii)** `features/calificaciones/data.ts` entra a "Se toca", con sus textos en DH-19, y CAL-1D09 lo admite porque ya es uno de los doce.
+
+    Recomiendo (i), si el texto de la celda ya nombra la actividad.
+- **La regla de mandato está bien:** §E13 manda sobre §E12 a §E7 en lo que toca. Las notas en §D-8.4, §D-8.5, §D-9, §D-10 y A-04 remiten a §E13 sin borrar el historial.
+- **El conteo, con N-44 resuelto:** ~26 o ~27, sin pasar de unos 30.
+
+### 9. Hallazgos y lo que el humano debe saber
+- **N-41:** la suma a §7.10 de `DESIGN.md` dice que Entregas avisa, y no avisa. Remedio: el texto de arriba.
+- **N-42:** el punto 2 de la comprobación humana necesita datos que nadie prepara en 10 minutos. Remedio: sacarlo (está cubierto por pruebas) o decir quién prepara los datos.
+- **N-43:** la regla de N-36 no está escrita para los bloques de 01e. Remedio: R-01e-14 y sus casos en FORO-1E48.
+- **N-44:** la cuenta de "Se toca" (16 o 17) y R-01e-7 frente a §E9.4. Remedio: una de las dos opciones.
+- **N-45 (detalle):** los textos de borrar están en §D-11, no "fuera de §D-9", y FORO-1E42 cumple lo que §D-11 ya pedía.
+
+**Para el humano, cuando la enmienda vuelva corregida:**
+- **Se aprueban tres decisiones:** DH-19 (los textos, recomendado aprobarlos), DH-20 (recomendado avisar) y DH-21 (recomendado corregirlo en 01e, con la autorización de un archivo de `features/clases`).
+- **Se acepta** que las correcciones de 01d (§E13.1) queden escritas en el plan; el humano puede cambiarlas.
+- **Los cuatro ajustes** que pido son de texto del plan. No cambian ninguna decisión.
+
+
+## Verificación de la corrección de la Enmienda 13 — FORO-01e (2026-11-17)
+
+**Veredicto: ACEPTADA.** N-41 a N-45 quedan corregidos como los pedí, y la nota de DH-21 recoge lo que comprobé. La Enmienda 13 queda lista para la aprobación escrita del humano, con DH-19, DH-20 y DH-21.
+
+Revisión por lectura de `plan.md` y del árbol `24916a4`. No corrí suites ni edité nada fuera de este archivo.
+
+### 1. El diff
+- **Archivos:** `plan.md` tiene 3933 líneas, SHA-256 `f95bba80a76867cc832426a18cfe1db69f2854f1eeb9fdac84c11d5add260837`. Lo comparé con `plan-enmienda-13-v1.md`, que tiene 3870 líneas (`534e410a…`).
+- **Diff:** `git diff --no-index` da **70 inserciones y 7 líneas reemplazadas, en 15 hunks**, como el cotejo del orquestador. Todos los hunks son de N-41 a N-45, de DH-21 y de la fila E13-14 de la tabla de enmiendas. No hay nada más.
+- **Las 7 líneas reemplazadas conservan lo que debía quedar:**
+  - **`:483`** (§7.10) y **`:520`** (el punto 2): traen el texto anterior como *Antes:*, con su motivo.
+  - **`:531`** ("Se toca"), **`:543`** (el conteo), **`:1945`** (§E7.5.6), **`:3672`** (la nota de la comprobación de 01d) y **`:551`** (DH-21): conservan el texto entero y solo suman su nota "(Enmienda 13, corrección…)". En DH-21, la opción (a), la (b) y la recomendación siguen iguales.
+- **Nada más cambia:** ni ids, ni decisiones del humano, ni subentregas cerradas.
+
+### 2. N-41 a N-45
+- **N-41, `:483`:** la frase ya no dice que Entregas avisa. Comprobé que Entregas conserva la lista sin aviso: `entregas-view.tsx:116-117` y `:161` solo reemplazan la lista ante un error que reemplaza la vista o sin filas. La frase final depende de DH-20 y dice qué pasa con (b). **Corregido.**
+- **N-42, `:520`, `:528` y `:3672`:**
+  - el punto 2 pasa a «Participantes» y a la participación de un alumno a 360 px, algo que las pruebas no ven;
+  - O-01d-5 queda "no verificada por decisión del humano, cubierta por pruebas automáticas";
+  - la comprobación sigue en 7 puntos y cabe en 10 minutos.
+
+  **Corregido.**
+- **N-43, R-01e-14 (`:219-264`) y FORO-1E48 (`:422-427`).** Las dos funciones nuevas son correctas:
+  - **La clave:** `pedirDeNuevoSoloLaParticipante` invalida `claveParticipante(claseId, foroId, alumnoId)` con `exact: true` y `cancelRefetch: false`. Esa clave es prefijo de los dos bloques, «Sus participaciones» y «Comentarios de la devolución», así que sin `exact` la relectura volvería a pedir el bloque que falló y formaría el ciclo de N-36. La nota del plan lo dice.
+  - **La condición:** la función sale temprano si no es un error que reemplaza la vista. `errorQueReemplazaLaVistaDelForo(true, error)` (`features/tareas/lib.ts:301-307`) cubre `TAREA_NO_ENCONTRADA`, `SIN_ACCESO_A_LA_CLASE` y `ALUMNO_NO_ENCONTRADO` (`data.ts:236-240`), y el `VALIDACION` con `claseId:`, `foroId:` o `alumnoId:` (`data.ts:243`), como dice R-01e-14.
+  - **Una vez por fallo nuevo:** `usePedirLaParticipanteAnteUnFalloNuevo` es copia exacta del gancho de 01d (`hooks.ts:876-888`), con `alumnoId` de más. La ref se inicia en el montaje con `errorUpdateCount`, así que un fallo que ya estaba en la caché no pide nada. El efecto solo actúa cuando esa cuenta sube.
+  - **Imports:** `useRef` y `useEffect` ya están importados en `hooks.ts` (`:17`).
+  - **«Comentarios de tu maestro»** usa el gancho de 01d sin cambiarlo, y R-01d-5 sigue intacta.
+  - **Se cumple junto con las demás restricciones:** R-01e-3 (no lee `.puedeBorrar` ni `.administracion`), R-01e-11 (el bloque no se pide sin calificación) y R-01e-12 (el panel de la tarea sigue igual).
+  - **FORO-1E48 pide, por bloque:**
+    - una sola lectura lógica más de la consulta principal;
+    - ninguna repetición de la lectura del bloque;
+    - un solo mensaje si la principal se reemplaza;
+    - ningún ciclo con el servidor inconsistente;
+    - que el `NO_ENCONTRADO` se quede en el bloque;
+    - la mutación que quita el `exact`. Quitarlo pone en rojo el caso inconsistente: la relectura por prefijo vuelve a pedir el bloque activo, su cuenta de fallos sube y el efecto lo pide otra vez.
+
+  **Corregido.**
+- **N-44, R-01e-7 (`:160-165`), "Se toca" (`:531`) y el conteo (`:543` y `:1945`).** La opción (i) es viable. Lo leí en el código:
+  - **Gradebook:** el enlace de la celda (`tabla-del-gradebook.tsx:69-85`) se arma con `textoDeCelda`, que es el estado de la celda, y con `TEXTOS_GRADEBOOK.celdaDe(alumno, tarea.titulo)` (`data.ts:33`, `${alumno}, ${tarea}`). Ninguno de los dos dice "tarea".
+  - **"Mis calificaciones":** el enlace es el título (`lista-de-mis-calificaciones.tsx:44-47`).
+  - Solo cambia el `to`, con `enlaceAParticipante` y `enlaceAForo`, que son funciones nuevas en `features/calificaciones/lib.ts` (§D-10, `:2813`; ese archivo ya está en "Se toca"). Así, `features/calificaciones/data.ts` no entra y R-01e-7 queda con su PARADA.
+  - La viñeta anterior de R-01e-7 se conserva y la nueva dice que la reemplaza.
+  - **"Se toca" son 16** (11 + 3 + 2), más `hooks.ts` de calificaciones si hace falta y `features/clases/hooks.ts` con DH-21 (a). **El conteo queda en ~26**, ~27 con DH-21 (a) y como máximo ~29. Cuadra con la lista.
+
+  **Corregido.**
+- **N-45, `:106` y `:287`:** los textos de borrar quedan en §D-11, y FORO-1E42 aparece como cumplimiento de §D-11, no como regla nueva. **Corregido.**
+- **DH-21, `:551`:** las viñetas repiten lo que comprobé: la función, las dos llamadas, la prueba vigilada `alumnos-view.test.tsx:223-226` y la autorización del archivo. **Bien.**
+
+### 3. Para el humano
+- **La Enmienda 13 queda lista para su aprobación escrita.** Decide tres cosas:
+  - **DH-19:** los textos de 01e. Recomiendo aprobarlos.
+  - **DH-20:** la recarga fallida de «Participantes». Recomiendo (a), avisar una vez por fallo.
+  - **DH-21:** agregar o quitar un alumno. Recomiendo (a), corregirlo en 01e. Esta opción pide su autorización escrita para `features/clases/hooks.ts`, que hoy está en "No se toca", solo en `invalidarPersonasDeLaClase`.
+- **También acepta** las correcciones de 01d escritas en §E13.1, que puede cambiar.
+- **01e queda en ~26 archivos** (~27 con DH-21 (a)), sin pasar de unos 30.
+
+
+## Verificación del resumen — FORO-01e — implementación (2026-11-17)
+
+**Veredicto: DEVUELTO, con un hallazgo que bloquea (M-13) y uno que no bloquea (N-46).** Hay además una decisión de textos para el humano (DH-22) y ajustes al texto de `DESIGN.md`. Todo lo demás coincide con el plan y con mis corridas:
+- las cifras;
+- "Se toca" y "No se toca";
+- las claves;
+- lo que invalida calificar;
+- las restricciones;
+- la matriz.
+
+Resumen verificado: `resumen-programador.md`, "## Implementación — FORO-01e (2026-11-17)" (2594 líneas, `8cd18502…`). La base es `24916a4` y el plan es el de 3933 líneas (`f95bba80…`).
+
+### Mis corridas (desde `frontend/`, una a la vez, nadie más corría nada)
+| Comando | Mi última línea | El resumen |
+|---|---|---|
+| `npm run lint` | salida 0; `All matched files use Prettier code style!` y `tsc -b` sin errores | igual |
+| `npm run build` | `✓ built in 875ms` (salida 0) | `✓ built in 905ms` (el tiempo varía; coincide) |
+| `npx vitest run src/features/tareas` | `Tests  1850 passed (1850)`, `Test Files  68 passed (68)` | igual |
+| `npx vitest run src/features/calificaciones` | `Tests  481 passed (481)`, `Test Files  24 passed (24)` | igual |
+| `npx vitest run src/features/clases` | `Tests  3167 passed (3167)`, `Test Files  131 passed (131)` | `Tests  3167 passed (3167)`, 131 archivos |
+| `npx vitest run src/app src/lib src/services src/styles src/components` | `Tests  1540 passed (1540)`, `Test Files  99 passed (99)`, con C-14 y C-16 ya aplicados | `2 failed \| 1538 passed (1540)`, de 99 archivos, antes de C-14 y C-16; con ellos se esperan 1540 en verde |
+
+**Conteos:**
+- `npx vitest list` sobre las seis pruebas nuevas: participantes-01e 33, errores-calificar-foro-01e 15, mi-calificacion-foro-01e 4, recuperar-participantes-01e 43, vecinos-panel-01e 8 y foro-01e 7, en total **110 casos**, como dice el resumen (contados con `grep -a -c "/<archivo>.test.tsx >"`). Cada id de FORO-1E01 a FORO-1E55 que trae el resumen aparece en la lista (FORO-1E48 tiene 16 casos).
+- `grep -rho "enEspera=" src --include=*.tsx --exclude=*.test.tsx | wc -l` da **99**, como dice el resumen (C-14).
+
+### "Se toca" y "No se toca" (contra `24916a4`)
+- **En `frontend/`** hay 26 entradas:
+  - 13 de producción modificadas y 3 nuevas, que son los 16 de §E13.14 con DH-21 (a);
+  - 6 pruebas nuevas;
+  - las 2 de la lista cerrada;
+  - las 2 `*.ataque` del tester (C-14 y C-16).
+- `docs/DESIGN.md`, `features/calificaciones/data.ts` y `features/calificaciones/hooks.ts` están **sin tocar** (`git diff --quiet`). No hay nada en `backend/` ni en `shared/`.
+- **La lista cerrada, solo lo autorizado:**
+  - en `features/calificaciones/lib.test.ts:147-164`, las cuatro URL suman `conTipo=si`, y nada más;
+  - en `lib/estado-por-id-estatico-ch6.test.ts`, CH6-A30 (c) suma `key={foroId}` para `participantes-view.tsx` y la `key` compuesta `${foroId}:${alumnoId}` para `participante-view.tsx`, con su comentario, como en §E13.2.
+- **`features/clases/hooks.ts` (DH-21 a): solo lo autorizado.**
+  - El diff son 7 líneas insertadas: el import de `clavePrefijoDeCalificaciones` (de `services/calificacionesService`, que es compartido, así que no rompe la regla 9), un comentario de tres líneas y las tres invalidaciones sin `exact` dentro de `invalidarPersonasDeLaClase`.
+  - `["clases", claseId, "tareas"]` alcanza `clavePrefijoDeEntregas`, porque cuelga de `claveTarea`.
+
+### Lo que bloquea
+#### M-13 — FORO-1E48 no prueba R-01e-14 en «Comentarios de tu maestro», y le falta el `VALIDACION` de `foroId:`
+- **Dónde:**
+  - `recuperar-participantes-01e.test.tsx:1073-1251`;
+  - `useMisDevoluciones` (`features/tareas/hooks.ts`), que llama a `usePedirElForoAnteUnFalloNuevo`.
+- **Qué pide el plan:** §E13.9, FORO-1E48 (corrección de la Enmienda 13, N-43) pide **un caso por bloque**: «Comentarios de tu maestro», «Sus participaciones» y «Comentarios de la devolución». En cada uno:
+  - con el `404` del foro, `404 ALUMNO_NO_ENCONTRADO`, `403 SIN_ACCESO_A_LA_CLASE` o un `VALIDACION` de `foroId:` o `alumnoId:`, hay una sola lectura lógica más de la consulta principal, y si la principal responde ese error, un solo mensaje;
+  - un `404 NO_ENCONTRADO` se queda en el bloque;
+  - el caso se comprueba con la mutación real.
+- **Qué hay:**
+  - Las 8 combinaciones solo cubren los dos bloques de la participante, y sus `ERRORES` no traen el `VALIDACION` de `foroId:`.
+  - Para «Comentarios de tu maestro» solo hay dos casos: la primera carga con `503` y el servidor inconsistente. Ese último solo afirma que las cuentas no suben, no que el foro se haya pedido.
+  - **Si se quita la llamada a `usePedirElForoAnteUnFalloNuevo` de `useMisDevoluciones`, ninguna prueba se pone en rojo**, y la tabla de mutaciones (G1 a G35) no tiene ninguna para ese gancho.
+  - Es justo la regla que la corrección de la Enmienda 13 agregó para los bloques de 01e. El código la cumple, pero ninguna prueba la vigila.
+- **Qué se espera:**
+  1. En `ForoView`, con el rol de alumno y calificación, «Comentarios de tu maestro» con `404 TAREA_NO_ENCONTRADA`, `403 SIN_ACCESO_A_LA_CLASE` y `400 VALIDACION` de `foroId:` da:
+     - una sola lectura lógica más del foro, por su ruta exacta, hasta dos peticiones con `retry: 1`;
+     - ninguna repetición del bloque;
+     - si el foro responde lo mismo, la vista reemplazada con un solo mensaje.
+  2. Con `404 NO_ENCONTRADO`, el bloque se queda con su texto y no pide el foro.
+  3. Con el servidor inconsistente, el caso afirma también que hubo una lectura más del foro.
+  4. `ERRORES` de los bloques de la participante suma el `VALIDACION` de `foroId:`.
+  5. Cada caso nuevo trae su mutación real, restaurada:
+     - sin la llamada en `useMisDevoluciones`;
+     - en la inconsistente, la llamada a `pedirDeNuevoSoloElForo` sin `exact` (o la equivalente).
+
+     El resumen corregido dice qué casos caen con cada una.
+- **Hermanos que el resumen corregido debe listar** (decisión del humano, 2026-10-02 y 2026-10-05):
+  - los tres bloques con R-01e-14;
+  - en cada uno, los estados vecinos del mecanismo: la primera carga, la recarga con datos, el fallo que ya estaba en caché al montar (no pide), dos fallos seguidos (cada uno pide una vez), el servidor inconsistente y el cambio de foro o de alumno con la `key`.
+
+### Lo que no bloquea
+#### N-46 — "Cada caso nuevo lo tumba su mutación real" es más de lo que muestra la tabla
+- **Dónde:** desviación 1 y la sección «Mutaciones» del resumen.
+- **Qué hay:** G1 a G35 tumban FORO-1E02 a 1E04, 1E07, 1E10 a 1E12, 1E20 a 1E22, 1E33, 1E34, 1E41 a 1E44, 1E46 a 1E50, 1E52, 1E54 y 1E55.
+- **Qué no tiene mutación propia:** FORO-1E01, 1E05, 1E06, 1E08, 1E09, 1E13, 1E14, 1E23 a 1E32, 1E35 y 1E51, 1E40, 1E45 y 1E53. Muchos son conducta heredada del panel o de la lista de 01d, que sus pruebas de origen ya vigilan, y eso es aceptable. Pero el resumen debe decirlo así.
+- **Qué se espera:** en el resumen corregido, una línea por cada caso sin mutación propia, con su razón:
+  - heredado y vigilado por qué caso;
+  - o redundante, y con qué mecanismo.
+
+  No pido mutaciones nuevas fuera de M-13.
+
+### Contra el código
+- **R-01e-1 a R-01e-14 y las restricciones del tester (O-01e-1 a O-01e-3).** Las comprobé en el código:
+  - **R-01e-1:** el panel crea siempre los dos ganchos y elige uno por `actividad`.
+  - **R-01e-2:** `participantes-view.tsx` no lee `isFetchingNextPage`. Solo lo nombra un comentario, y CH4-04 sigue en verde.
+  - **R-01e-3:** ninguna vista de 01e lee `.puedeBorrar` ni `.administracion`.
+  - **R-01e-4 y R-01e-5:** `.version` sigue en 2 en el panel, que conserva una sola `primary`.
+  - **R-01e-6:** `mi-participacion.tsx` no tiene `new Date(`, `Date.now`, `getTime(` ni `fechaLimite`.
+  - **R-01e-7:** solo cambia el `to`, en `tabla-del-gradebook.tsx:73-77` y `lista-de-mis-calificaciones.tsx:45`, con `enlaceAParticipante` y `enlaceAForo` relativos en `features/calificaciones/lib.ts`. No hay texto nuevo y `data.ts` sigue sin tocar.
+  - **R-01e-11:** `DevolucionesDeTuMaestro` solo se monta con `mia.calificacion !== null`.
+  - **R-01e-12:** en `useCalificarEntrega` solo se suma la marca de vieja (`exact`, `refetchType: "none"`) ante un `409`.
+  - **R-01e-13:** sin `tipo`, el enlace es el de la tarea.
+  - **R-01e-14:** está en el código. `pedirDeNuevoSoloLaParticipante` y `usePedirLaParticipanteAnteUnFalloNuevo` son literales del plan; `useParticipacionesDeAlumno` y `useDevoluciones` llaman al gancho nuevo, y `useMisDevoluciones`, al de 01d. Su prueba es M-13.
+  - **O-01e-2:** al pasar a solo lectura, la lectura de la calificación usa la misma consulta montada. No hay observador nuevo.
+  - **O-01e-3:** los ganchos con `MiEntrega`, `Hilo`, `Comentar`, `Entregar` o `Anular` siguen siendo los cinco de antes.
+- **Las seis claves de §E13.5** son literales en `features/tareas/lib.ts`:
+  - `clavePrefijoDeParticipantes = [...claveForo, "participantes"]`;
+  - `claveListaDeParticipantes`, que suma `"lista"`;
+  - `claveParticipante`, que suma `"alumno", alumnoId`;
+  - `claveParticipacionesDeAlumno` y `claveDevoluciones`, que suman `"participaciones"` y `"devoluciones"` a `claveParticipante`;
+  - `claveMisDevoluciones = [...claveMiParticipacion, "devoluciones"]`.
+- **Lo que invalida calificar (§E13.4)**, en `useCalificarParticipacion`:
+  - `setQueryData` de la participante (clave exacta);
+  - `invalidateQueries` sin `exact` de la lista de participantes, del prefijo de calificaciones y de la lista de «Foro»;
+  - con comentario, las devoluciones con `exact`;
+  - ante un `409`, la participante con `exact` y `refetchType: "none"`.
+
+  No toca el foro, las participaciones ni lo que escribió el alumno. Coincide con FORO-1E43, y G6 a G10 lo vigilan.
+- **FORO-1E42:** `useBorrarParticipacion` suma `clavePrefijoDeParticipantes` sin `exact`.
+- **La unión y el foco (§E13.6):**
+  - «Participantes» une con `pages.flatMap`. Lo que escribió y las devoluciones, con `unirPaginasSinRepetidas`.
+  - Los tres bloques usan `useFocoAlEncabezadoSiSePierde` con su `h2` o `h3` (`h4` en «Comentarios de tu maestro») y `useVerMasConservandoLaLista` de 01d.
+  - Las dos vistas siguen la Forma C: la raíz con su clave y el contenido con `key={foroId}` o con `` `${foroId}:${alumnoId}` ``, con los ids canónicos.
+- **La matriz y los avisos:**
+  - **Coinciden con el código:**
+    - las exclusiones del aviso de recarga: la página siguiente, el cursor y lo que reemplaza la vista;
+    - los avisos de recarga por memoria de consulta;
+    - el `recargando` de la desviación 2;
+    - el aviso de calificar: los códigos que redirigen no avisan, y un error de un campo que el panel pinta, con la vista montada, tampoco.
+  - **Los textos de DH-19 y DH-20 son literales:** `TEXTOS_DEL_PANEL_POR_TIPO.foro`, `TEXTOS_MI_CALIFICACION_DEL_FORO`, `TEXTOS_PARTICIPANTE.errorAlCargar` y `.recargaFallidaDeLoQueEscribio`, `TEXTOS_DEVOLUCIONES` y `TEXTOS_PARTICIPANTES.recargaFallida`.
+  - Los `VALIDACION` fuera de contrato (FORO-1E05 a 1E09 y 1E40) y las frases de recuperación (FORO-1E20 a 1E35, 1E49, 1E54 y 1E55) tienen su caso.
+- **Cada caso requerido tiene su archivo y su título.** Los títulos del resumen existen en `npx vitest list` (abajo). En particular:
+  - **FORO-1E40** está en `vecinos-panel-01e:632` (la tarea y el foro);
+  - **FORO-1E41** está en `:666-735` (la tarea y el foro, con la clase archivada y con la vista desmontada), y cierra la fila de calificar de ADMIN-01d1 y 01d2;
+  - **FORO-1E44** está en `participantes-01e` (agregar y quitar, G11 a G13);
+  - **FORO-1E52** está reescrito con la otra participación ya en caché: los tres saltos, y G26 cae;
+  - **FORO-1E48** es M-13.
+
+### Las 8 desviaciones
+1. **El código antes que las pruebas: aceptada en lo técnico, con M-13 y N-46. Además, se registra para el humano.**
+   - **Lo técnico:** el propósito del rojo primero es saber que cada caso vigila lo que dice. Las 35 mutaciones lo demuestran para lo que cubren: las 36 corridas restauradas byte a byte, según el resumen. No las repetí: soy de solo lectura.
+   - **Dónde falló:** el caso que quedó sin rojo, R-01e-14 en «Comentarios de tu maestro», es justo el que el orden habría atrapado (M-13).
+   - **Lo de proceso:** en 01c2 lo acepté una vez y pedí el rojo primero en adelante, y el orquestador se lo recordó en el encargo. Repetirlo es una desviación de proceso. No la bloqueo, porque las mutaciones bastan como evidencia, pero el humano debe saberlo.
+   - **En la corrección de M-13, cada caso nuevo trae su mutación en rojo antes de darse por bueno.**
+2. **El estado `recargando` y `useMarcarElFalloComoAvisado`: aceptada.**
+   - Es coherente con R-01e-14 y no forma ciclo, porque solo escribe la memoria por consulta (`ultimoFalloAvisado`, con la misma marca `errorUpdateCount:errorUpdatedAt` que el gancho del aviso) y no pide nada.
+   - Logra lo que pide la matriz: tras un `409`, si falla la recarga de la participante, la persona lee un solo aviso, el de DH-19.
+   - **Queda un vecino para el tester (punto de ataque 2):** si fallan a la vez el foro y la participante, `recargarTrasConflicto` sale por `foroNuevo.isError` antes de marcar la participante. Al apagarse `recargando` avisarían las dos recargas.
+3. **`useCalificarParticipacion` también pide la participante ante un error que reemplaza la vista: aceptada.**
+   - Es de la misma forma que `pedirDeNuevoLaTarea` en la tarea, con `exact` y `cancelRefetch: false`.
+   - Corre una vez por mutación, desde `onError`, así que no hay ciclo.
+   - Sin ella, un `404 ALUMNO_NO_ENCONTRADO` al calificar dejaría la vista con el panel. Es una extensión necesaria de §E13.4, del mismo mecanismo.
+4. **Dos textos sin lugar en §D-9: decisión del humano (DH-22, abajo).**
+   - El `Cargando` de los bloques sin texto sigue el patrón de 01d (`participaciones-del-foro.tsx:153` y `replicas-de-participacion.tsx:328`).
+   - El de la vista entera **no** lo sigue: cada vista de `features/tareas` lleva el suyo («Cargando la entrega…», «Cargando el foro…»).
+   - «Todavía no participa.» en la lista vacía de «Sus participaciones» reutiliza la frase de §D-9. Pero, con un alumno que no participó, la vista la muestra dos veces seguidas: en el encabezado y en el bloque.
+5. **El panel «Participantes» en una clase archivada: aceptada.**
+   - Es una lectura: las rutas 12 a 16 son `lectura`, y el panel no pide nada.
+   - El texto de §E13.11 no lo excluía.
+   - En una clase archivada, la participación de un alumno muestra la calificación en lectura, sin panel.
+   - Queda en §7.34.
+6. **`participantes/:alumnoId` del alumno cae en `*`: aceptada.**
+   - §E13.14 solo pide `foros/:foroId/participantes` → `/login`.
+   - `*` también lleva a `/login`, así que el alumno llega al mismo lugar.
+   - Las rutas 13 a 16 niegan al alumno en el servidor.
+7. **Tras un `409`, el panel nace con la versión vieja de la caché: aceptada como observación.**
+   - No hay riesgo de guardar sobre una versión vieja: el servidor compara la versión y responde `409`, que recarga y reinicia el panel.
+   - El costo es que la persona pierde lo escrito en ese reinicio. Es lo mismo que en la tarea (M-06 de CALIFICACIONES, aceptado), y queda como punto de ataque 5.
+8. **El import de `clavePrefijoDeCalificaciones` en `features/clases/hooks.ts`: aceptada.** Hacía falta para la tercera invalidación de DH-21 (a), y viene de `services/`, que es compartido.
+
+### Para el humano: DH-22, dos textos que §D-9 no trae
+| Texto | Opciones | Recomendación |
+|---|---|---|
+| La carga de la participación de un alumno (la vista entera) | **(a)** «Cargando…», el de `Cargando` por omisión, como está. **(b)** «Cargando la participación…», como «Cargando la entrega…» y «Cargando el foro…» | **(b).** Cada vista de `features/tareas` dice qué carga, y «Cargando…» solo es de los bloques |
+| La lista vacía de «Sus participaciones» | **(a)** «Todavía no participa.», como está; con un alumno que no participó, repite la frase del encabezado. **(b)** «Aún no hay participaciones de este alumno.», como «Aún no hay participaciones en este foro.» y «Aún no hay comentarios de la devolución.» | **(b).** Sigue el patrón de vacío de los bloques del foro y no repite la frase de arriba |
+
+Con (b) en cualquiera de los dos, es una constante de `features/tareas/data.ts` y su caso. Va en la misma corrección que M-13, sin sumar archivos.
+
+### El texto propuesto para `docs/DESIGN.md`
+**Dictamen: listo con cinco ajustes literales (D-1 a D-5).**
+
+Lo que está bien:
+- **Lo que describe** es todo patrón visual nuevo de 01c1 a 01e:
+  - la fila con complemento;
+  - «Actividades»;
+  - el detalle con el panel «Participantes»;
+  - el panel de participaciones y cada participación;
+  - el control y el bloque de réplicas;
+  - publicar con páginas pendientes;
+  - «Borrar» del admin;
+  - "Tu participación" con su calificación;
+  - el foco al encabezado;
+  - los errores;
+  - "Participantes";
+  - la participación de un alumno.
+- **Lo cotejé con el código de 01e, y es cierto:**
+  - `h4` «Calificación» bajo un divisor `border-t border-border`;
+  - «Comentarios de tu maestro» en `h4` con `tabIndex={-1}`, sin pintar mientras carga ni vacío;
+  - el panel con `Users` y `outline`, antes de las acciones;
+  - el orden de los tres `Card` de la participación;
+  - «En respuesta a» con `FirmaDelAutor`;
+  - el `h2` con `tabIndex={-1}`;
+  - «Ver participación» `outline` `sm` con el nombre `sr-only`.
+- **El estilo:** usa viñetas, tokens, los encabezados `h2`/`h3`/`h4`, la marca "propuesta (FORO-01)" en el encabezado, como §7.30, y el tono de §9. No tiene emojis, ni el carácter `−`, ni palabras prohibidas.
+- **No contradice** §7.7, §7.14, §7.20, §7.25, §7.26, §7.27 ni §7.32.
+- **No rompe `styles/tokens-r1.ataque`:** corta por la primera aparición de `### Tokens`, `### Materiales`, `### Escala`, `### Radios`, `### Bordes` y `## 5.`, que están antes de §7, y el texto no repite ninguno ni tiene tablas.
+- **Las sumas** a §7.10 ("Error de la página siguiente", con DH-20 (a) ya decidido), §7.3, §7.16, §7.8 y §7.22 están bien.
+
+**Los ajustes, literales:**
+- **D-1, la ubicación.** "Después de la línea 939" es el **encabezado** de §7.33: insertar ahí la partiría.
+  - Cambiar «La §7.34 va **después de la §7.33** (después de la línea 939)» por «La §7.34 va **después de la última viñeta de la §7.33** y antes de `## 8. Densidad por rol` (hoy, línea 947), separada por una línea en blanco».
+  - O-01e-1 del tester repite el mismo número, así que vale la misma corrección.
+- **D-2, «"Participantes" (FORO-01e)»:** faltan los estados que §7.26 sí dice para Entregas. Al final de la viñeta, después de «(DH-20).», sumar:
+  > «Estados: error (la vista se reemplaza, como Entregas) → cargando («Cargando las participaciones…») → vacío («Aún no hay alumnos en esta clase.») → datos. Si el cursor ya no sirve, dice «La lista de alumnos cambió mientras la veías. Vuelve a abrir Participantes para verla completa.», sin «Ver más alumnos».»
+- **D-3, «La participación de un alumno (FORO-01e)»:** faltan los errores y los avisos de la vista. Al final de la viñeta, como cuarta subviñeta, sumar:
+  > «- Errores: «No encontramos a ese alumno en esta clase.», «Ese foro ya no existe.» o la falta de acceso reemplazan la vista. Una recarga fallida con datos avisa una vez por fallo «No pudimos actualizar la participación de este alumno. Mostramos la última versión que tenemos.». Si falla la recarga tras un `409` de calificar, el aviso es «No pudimos cargar la participación actual. Revisa tu conexión e inténtalo de nuevo.». La lista vacía de «Sus participaciones» dice {texto de DH-22}.»
+- **D-4, §7.14, "Lo abierto es de su clase":** «el foro, la participación y el participante» es ambiguo, porque ninguna vista de 01e tiene `key` por una participación. Cambiar la suma por:
+  > «"Participantes" (`key` por el foro) y la participación de un alumno (`key` por el foro y el alumno juntos, como la entrega de un alumno)».
+- **D-5, la viñeta «El foco cuando desaparece un control dentro de un bloque»:** enumera «la clase que pasa a solo lectura», pero el panel de calificación no tiene encabezado con foco propio. En el código, ese caso lo toma la regla de §7.32 (`useFocoAlTituloDeLaClase` de `ClaseLayout`, el `h1` de la clase).
+  - FORO-1E47 solo afirma "nunca `<body>`". Si el tester confirma que el foco llega al `h1` (punto de ataque 3), sumar al final de la viñeta: «Si la clase pasa a solo lectura con el foco en el panel de calificación, el foco sigue §7.32 (el `h1` de la clase).».
+  - Si no llega, es un hallazgo del tester, no un texto.
+
+**Con D-1 a D-5 y lo que decida el humano en DH-22, el texto queda listo para su autorización.** D-1 a D-4 son de redacción y salen de lo que hace el código.
+
+### Lo que el tester debe atacar primero (ronda 1)
+1. **R-01e-14 en los tres bloques.** En particular, «Comentarios de tu maestro» con un error que reemplaza la vista, después de M-13. También los fallos seguidos, el fallo que ya estaba en caché al montar y el cambio de foro o de alumno con la vista conservada.
+2. **La recarga tras un `409` con `RUBRICA_MODIFICADA` o `ENTREGA_NO_CALIFICABLE` en la que fallan a la vez el foro y la participante.** ¿Un solo aviso, como dice la matriz? La salida temprana por `foroNuevo.isError` no marca la participante como avisada (desviación 2).
+3. **El foco al pasar a solo lectura con el foco en el panel** (un `409 CLASE_ARCHIVADA`, o la clase archivada en otra sesión y una recarga): ¿llega al `h1` de la clase (§7.32), o a la raíz de la vista? FORO-1E47 solo descarta `<body>`.
+4. **La memoria de avisos con `useMarcarElFalloComoAvisado`:** salir y volver con el fallo en caché, dos fallos seguidos durante y después de `recargando`, y StrictMode.
+5. **Tras un `409` con la vista desmontada, volver a abrir la participación** (desviación 7): el panel nace con la versión de la caché mientras vuela la lectura. ¿Se pierde lo escrito al llegar? ¿Hay un solo aviso? ¿El segundo guardado manda la versión nueva?
+6. **DH-21 con «Participantes», Entregas o el gradebook ya en caché:** agregar o quitar un alumno y volver antes de 30 s, en otra clase con el mismo alumno. No debe invalidar la otra clase.
+7. **Los enlaces del gradebook y de "Mis calificaciones" con `tipo: "foro"`:** en una clase anterior del alumno (solo lectura, sin enlace), con ids en mayúsculas y desde las tres perspectivas.
+
+
+## Verificación de la corrección — FORO-01e: M-13, N-46 y DH-22 (2026-11-17)
+
+**Veredicto: ACEPTADA.**
+- M-13 queda corregido y vigilado: los casos nuevos caen con H1 a H6.
+- N-46 queda resuelto.
+- Los dos textos de DH-22 son literales de la decisión del humano.
+- D-5 quedó comprobado con un caso.
+- El texto final de `DESIGN.md` (§7.34) está listo para la autorización tal cual. Las sumas a §7.16, §7.8 y §7.22 necesitan un texto literal, que doy abajo (E-1 a E-3).
+
+El tester puede atacar.
+
+Resumen verificado: `resumen-programador.md`, "## Corrección tras la verificación del manager — FORO-01e: M-13, N-46 y DH-22 (2026-11-17)" (2771 líneas, `32f9fcb5…`).
+
+### Mis corridas (desde `frontend/`, una a la vez)
+| Comando | Mi última línea | El resumen |
+|---|---|---|
+| `npm run lint` | salida 0; `All matched files use Prettier code style!` y `tsc -b` sin errores | igual |
+| `npm run build` | `✓ built in 1.39s` (salida 0) | `✓ built in 1.19s` (solo cambia el tiempo) |
+| `npx vitest run src/features/tareas` | `Tests  1857 passed (1857)`, `Test Files  68 passed (68)` | `Tests  1857 passed (1857)`, 68 archivos |
+| `npx vitest run src/features/calificaciones` | `Tests  481 passed (481)`, `Test Files  24 passed (24)` | `Tests  481 passed (481)`, 24 |
+| `npx vitest run src/features/clases` | `Tests  3167 passed (3167)`, `Test Files  131 passed (131)` | `Tests  3167 passed (3167)`, 131 |
+| `npx vitest run src/app src/lib src/services src/styles src/components` | `Tests  1540 passed (1540)`, `Test Files  99 passed (99)` | `Tests  1540 passed (1540)`, 99 |
+
+- **Conteos con `npx vitest list` de las seis pruebas nuevas:** 34, 15, 4, 49, 8 y 7, en total **117 casos**, como dice el resumen.
+- **Archivos:** `git status --short` sobre `frontend`, `backend`, `shared` y `docs/DESIGN.md` da 26 entradas, todas en `frontend/`.
+- **Sin cambios:** `docs/DESIGN.md`, `features/calificaciones/data.ts` y `hooks.ts`.
+- **`features/clases/hooks.ts`:** sigue en `8ef81be0…`.
+
+### M-13
+- **Los casos nuevos (`recuperar-participantes-01e.test.tsx:1263-1340`) prueban R-01e-14 en «Comentarios de tu maestro».** Con el rol de alumno y calificación, el bloque se retiene y luego falla con `404 TAREA_NO_ENCONTRADA`, `403 SIN_ACCESO_A_LA_CLASE` o `VALIDACION` de `foroId:`. Los casos afirman:
+  - entre una y dos lecturas más del foro (una lógica, con `retry: 1`);
+  - dos peticiones del bloque, sin repetición;
+  - un solo mensaje de la vista reemplazada;
+  - y que no queda el texto del bloque.
+- **`NO_ENCONTRADO`:** se queda en el bloque, con el foro pedido una sola vez.
+- **El caso inconsistente:** ahora afirma `foro === 2`, la carga más una lectura de más, y que las cuentas no suben al reposar.
+- **`ERRORES` de los bloques de la participante** suma el `VALIDACION` de `foroId:`.
+- **H1 a H6 cubren cada eslabón:**
+  - el gancho en `useMisDevoluciones` (H1);
+  - el `exact` (H2);
+  - cada código (H3 a H5);
+  - la guarda de `pedirDeNuevoSoloElForo` (H6).
+
+  Las restauraciones se compararon byte a byte, según el resumen; no las repetí.
+- **La tabla de hermanos y estados vecinos es cierta.** La cotejé con `hooks.ts`:
+  - los tres bloques usan el gancho literal de R-01e-14 o el de 01d;
+  - la ref nace con el `errorUpdateCount` del montaje;
+  - cada fallo nuevo pide una vez;
+  - las dos peticiones a la misma participante se unen por `cancelRefetch: false`;
+  - los códigos que redirigen no reemplazan la vista.
+- **Los estados "sin caso propio, con su mecanismo" son aceptables antes del ataque.** Son:
+  - la recarga con datos que reemplaza;
+  - volver a montar con el fallo en caché;
+  - los fallos seguidos;
+  - dos bloques a la vez;
+  - la clase archivada.
+
+  Pasan por el mismo efecto de un gancho literal, ya probado por las primeras cargas de 01e y por FORO-1D42 y su familia en 01d. No pido escribirlos ahora: quedan como punto de ataque 1.
+
+### N-46
+Cada caso "heredado" tiene quien lo vigile, y abrí los ids en el árbol:
+- FORO-1C10, en `traduccion-foro-01c.test.ts`;
+- CAL-1D05, en `mis-calificaciones-01d.test.tsx`;
+- CAL2-B09, en `exportar-02b.test.tsx`;
+- FORO-1C53 y FORO-1D53, en las pruebas del foro de 01c y 01d;
+- FORO-1D51, en `recuperar-participaciones-01d` y `replicas-01d`;
+- CH6-A14 y FORO-1E40, para la validación local del panel.
+
+Cada "redundante" lo es:
+- FORO-1E23 a 1E32 dependen de `useMarcarViejaSiQuedoEnError`, que es una garantía escrita sobre TanStack Query 5.103.2. Es la misma redundancia declarada en D29 y D30 de 01d.
+- FORO-1E45 es una forma literal, como FORO-1D41.
+
+**Resuelto.**
+
+### DH-22 y D-5
+- **Los textos de DH-22 son literales de la decisión del humano:**
+  - `TEXTOS_PARTICIPANTE.cargando`, «Cargando la participación…», lo usa `participante-view.tsx:313`;
+  - `.sinParticipaciones`, «Aún no hay participaciones de este alumno.», lo usa `:117`.
+
+  Los dos están en `features/tareas/data.ts:633-634`.
+- **Sus casos:**
+  - «DH-22: mientras carga, la participación de un alumno dice «Cargando la participación…»» (`participantes-01e.test.tsx:811`), que cae con H8;
+  - FORO-1E02 «sin participar» (`:774`), que afirma un solo «Todavía no participa.» y el texto nuevo dentro del bloque;
+  - FORO-1E42, que cae con H7.
+- **D-5:** FORO-1E47 (`participantes-01e.test.tsx:1152`) afirma ahora que el foco llega al `h1` de la clase. El foco lo lleva `useFocoAlTituloDeLaClase` de `ClaseLayout`, como dice §7.32.
+  - No tiene mutación propia porque ese gancho está fuera de "Se toca", y es correcto no mutarlo sin permiso (AGENTS.md, "Mutaciones en archivos de 'No se toca'").
+  - La aserción del `h1` basta para la ronda.
+  - Detalle: el título del caso todavía dice «a la raíz o al título». No bloquea; si el programador vuelve a tocar el archivo, conviene que diga «al título de la clase».
+
+### El texto final de `docs/DESIGN.md` (`resumen-programador.md:2685-2734`)
+**§7.34: lista para la autorización del humano tal cual.**
+- D-1 a D-5 están aplicados como los pedí:
+  - **D-1:** la ubicación es antes de `## 8. Densidad por rol`, línea 947.
+  - **D-2:** los estados de «Participantes» y la frase del cursor.
+  - **D-3:** la subviñeta de errores, con el texto vacío de DH-22. La frase que sumó, «Mientras carga, la vista dice «Cargando la participación…» (DH-22).», es cierta y es el otro texto que decidió el humano.
+  - **D-4:** las dos `key`.
+  - **D-5:** el `h1` de la clase, comprobado.
+- **Describe todo patrón visual nuevo de 01c1 a 01e y solo lo que hace el código.** Lo cotejé en esta verificación y en la anterior.
+- **Lleva la marca** "propuesta (FORO-01)" en el encabezado, como §7.30 y §7.31.
+- **No contradice** §7.7, §7.14, §7.20, §7.25 a §7.27 ni §7.32.
+- **No rompe `styles/tokens-r1.ataque`:** sin los encabezados que corta, sin tablas y sin `−`.
+- **El tono es el de §9:** concreto, en español de México y sin palabras prohibidas.
+
+**Las sumas a otras secciones:** las de §7.10 y §7.14 vienen entre comillas y son literales. Las de §7.3, §7.16, §7.8 y §7.22 son descripciones, no texto que el humano pueda autorizar tal cual. Además, §7.3 ya dice «(seis hasta FORO-01, siete después)» (`DESIGN.md:415`) y §7.16 ya pone «Foro» tercera (`:685`). Propongo estos textos literales:
+- **E-1, §7.3:** sin suma (ya lo dice la línea 415). En §7.16 (`:687`), reemplazar la subviñeta «**Foro:** la lista de los foros de la clase; su detalle (planteamiento, participación principal y réplicas) lo diseña FORO-01.» por:
+  > «**Foro:** la lista de los foros de la clase, su detalle, las participaciones y «Participantes»: §7.34 (propuesta (FORO-01)).»
+- **E-2, §7.8:** después del párrafo «**Insignia "Tarea"** …» (`:548`), un párrafo nuevo:
+  > «**Insignia «Foro» (propuesta (FORO-01)):** `Badge` `muted` con el icono `MessagesSquare` y el texto «Foro», como la de «Tarea». Es el tipo de la actividad, no un estado: va en la fila del foro en «Actividades de aprendizaje» y en el detalle del foro (§7.34).»
+
+  Lo comprobé: `seccion-de-tema.tsx:162` y `foro-view.tsx:91`.
+- **E-3, §7.22:** después de la viñeta «**Tarea:** …», una viñeta nueva:
+  > «- **Foro (propuesta (FORO-01)):** la fila de la tarea con «Foro:» oculto y la insignia «Foro» (§7.8); enlaza al foro. «Crear foro» (`outline`, `MessagesSquare`) va junto a «Crear tarea», que sigue siendo la única acción principal. El detalle, en §7.34.»
+- **E-4 (de forma):** el párrafo nuevo de §7.14 lleva su título en negrita con la marca, como los demás de esa sección: «**Foco al encabezado del bloque (FORO-01d, T-02; propuesta (FORO-01)):** …». Las dos sumas de §7.10 se agregan al final de su viñeta con «(propuesta (FORO-01))».
+
+**Con E-1 a E-4, todo el texto se puede autorizar tal cual.**
+
+**Para explicárselo al humano, en lenguaje llano:**
+- La sección nueva de `DESIGN.md` describe cómo se ve y se comporta el foro en toda la plataforma:
+  - la fila de cada foro en las listas, con su etiqueta «Foro»;
+  - la página del foro, con el planteamiento, las participaciones de la clase y sus réplicas;
+  - lo que ve el alumno de su propia participación y de su calificación;
+  - la tabla «Participantes», con la página de cada alumno, donde el maestro califica.
+- También dice qué textos aparecen cuando algo falla o está vacío, y a dónde se mueve el foco del teclado cuando un elemento desaparece.
+- No cambia colores, tamaños ni componentes: solo registra cómo se usan los que ya existen.
+
+### Puntos de ataque para la ronda 1 (actualizados)
+1. **R-01e-14 en los estados sin caso propio:**
+   - la recarga con datos que reemplaza la vista, en los tres bloques;
+   - volver a montar con el fallo en caché (no debe pedir);
+   - dos fallos seguidos (una lectura por fallo);
+   - «Sus participaciones» y «Comentarios de la devolución» fallando a la vez (una sola lectura de la participante);
+   - el cambio de foro o de alumno con la `key`.
+2. **La recarga tras un `409` con `RUBRICA_MODIFICADA` o `ENTREGA_NO_CALIFICABLE` en la que fallan a la vez el foro y la participante.** La salida por `foroNuevo.isError` no marca la participante como avisada (desviación 2): ¿sale un solo aviso, o dos al apagarse `recargando`?
+3. **La memoria de avisos con `useMarcarElFalloComoAvisado`:** salir y volver con el fallo en caché, un fallo más después de `recargando`, y StrictMode.
+4. **Volver a abrir la participación tras un `409` con la vista desmontada (desviación 7):** ¿un solo aviso? ¿se pierde lo escrito cuando llega la lectura? ¿el segundo guardado manda la versión nueva?
+5. **DH-21 con otra clase que tiene al mismo alumno:** agregar o quitar en una no debe invalidar la otra. Volver antes de 30 s pide lo nuevo.
+6. **Los enlaces de foro del gradebook y de "Mis calificaciones":** en una clase anterior (sin enlace), con ids en mayúsculas y desde las tres perspectivas. La celda conserva su texto oculto.
+7. **El foco al pasar a solo lectura**, con el foco en «Ver más participaciones», «Ver más comentarios» o «Ver más alumnos», no solo en el panel: ¿al encabezado del bloque, o al `h1` de la clase (§7.32)? ¿Nunca a `<body>`?
+
+
+## Verificación de la corrección — FORO-01e: T-01 y docs/DESIGN.md (2026-11-17)
+
+**Veredicto: ACEPTADA.**
+- T-01 queda corregido, con dos avisos en el camino del hallazgo, y vigilado por 11 casos y las mutaciones T1 a T5.
+- `docs/DESIGN.md` tiene el texto autorizado, E-1 a E-4 literales y en su lugar, y una sola frase nueva, la de T-01. Esa frase es cierta y no necesita autorización nueva: basta informar al humano.
+- Falta D-4, cuyo texto literal va abajo.
+
+El tester puede pasar a la ronda 2.
+
+Resumen verificado: `resumen-programador.md`, "## Corrección tras la ronda 1 — FORO-01e: T-01, y docs/DESIGN.md (2026-11-17)" (2938 líneas, `dc3275ec…`).
+
+### Mis corridas (desde `frontend/`, una a la vez)
+| Comando | Mi última línea | El resumen |
+|---|---|---|
+| `npm run lint` | salida 0; `All matched files use Prettier code style!` y `tsc -b` sin errores | salida 0, `tsc -b` sin errores |
+| `npm run build` | `✓ built in 841ms` (salida 0) | `✓ built in 1.21s` |
+| `npx vitest run src/features/tareas` | `Tests  1877 passed (1877)`, `Test Files  69 passed (69)` | `Tests  1877 passed (1877)`, 69 archivos |
+| `npx vitest run src/features/calificaciones` | `Tests  481 passed (481)`, `Test Files  24 passed (24)` | `Tests  481 passed (481)`, 24 |
+| `npx vitest run src/features/clases` | `Tests  3167 passed (3167)`, `Test Files  131 passed (131)` | `Tests  3167 passed (3167)`, 131 |
+| `npx vitest run src/app src/lib src/services src/styles src/components` | `Tests  1540 passed (1540)`, `Test Files  99 passed (99)` | `Tests  1540 passed (1540)`, 99 |
+
+- **Conteos:** `npx vitest list` de las seis pruebas nuevas da 34, 15, 4, 60, 8 y 7, en total **128 casos**, y `grep -a -c "T-01:"` da 11, como dice el resumen.
+- **`docs/DESIGN.md`:** 1041 líneas, SHA-256 `871eb399…`, como dice el resumen.
+
+### T-01
+- **El remedio** (`participante-view.tsx`, después del `Promise.all`) cubre cada combinación:
+  - **El foro y la participante fallan con `5xx` y la vista sigue vigente:** la participante queda marcada como avisada y la función sale. Al apagarse `recargando`, solo avisa el foro, con su `useAvisoDeRecargaFallidaDelForo` sobre `claveForo`. Salen **dos avisos**, el del `409` y el del foro, como pide §E13.7, «un solo aviso de la recarga».
+  - **Es la conducta de la tarea:** `entrega-de-alumno-view.tsx:126` sale cuando falla la tarea y deja que avise la recarga de la tarea. El foro suma la marca, porque aquí la participante tiene su propio aviso de recarga y en la tarea no.
+  - **El foro reemplaza la vista:** el aviso de la participante se apaga con `!foroReemplazaLaVista`, y queda el aviso del `409` más el mensaje de la vista.
+  - **El foro redirige:** no hay aviso de recarga.
+  - **La recarga deja de estar vigente:** quedan marcados los dos fallos.
+  - **Los controles no se rompen:** solo la participante da DH-19 y, sin fallos, el panel se reinicia.
+- **Los 11 casos lo vigilan:**
+  - 5 estaban en rojo con el código anterior: `5 failed | 4 passed`, con 4 casos de control en verde;
+  - T1 a T5 tumban cada rama;
+  - los casos 10 y 11 se escribieron después del remedio, porque T3 y T4 sobrevivían, y su rojo es el de esas mutaciones. Es aceptable: son ramas del mismo remedio y cada una tiene su caso.
+- **La lista de hermanos es cierta** en `ENTREGA_NO_CALIFICABLE`, los otros `409`, las cuatro combinaciones, los errores que reemplazan la vista, los códigos que redirigen, la vista desmontada, la memoria y StrictMode (la marca es idempotente y vive en un `WeakMap`).
+  - **La clase archivada, "sin caso propio: va por el mismo `!vigente`", es aceptable.** `vigente` es `montadoRef.current && sigueVigente(generacion)`, y el caso 9 lo pone en falso por la primera mitad. La rama, la marca y la salida son las mismas.
+  - Hay una diferencia que el tester debe mirar (punto de ataque 1): con la clase archivada, la vista **sigue montada**, así que los ganchos de aviso siguen vivos. La marca ocurre antes del `finally` que apaga `recargando`, y eso debería bastar.
+- **La tarea y `editar-foro-view.tsx`:** bien descartadas. La tarea ya da dos avisos y el editor solo pide una lectura.
+
+### `docs/DESIGN.md` (diff completo contra `24916a4`)
+`git diff --stat` da 41 inserciones y 3 líneas cambiadas, en 6 hunks.
+- **§7.34 (`:953-984`), antes de `## 8. Densidad por rol`:** es el bloque autorizado (`resumen-programador.md:2693-2723`), con **una sola línea distinta** (lo comparé línea por línea): la de errores de la participación de un alumno, que suma la frase de T-01.
+  - La frase es cierta: el texto del foro es `TEXTOS_DETALLE_FORO.avisoRecargaFallida` (`features/tareas/data.ts:282`).
+  - Está bien redactada.
+  - Describe una conducta que corrige un hallazgo con un texto que ya existía y estaba aprobado desde 01c2. **Basta informarle al humano**; no hace falta otra autorización.
+  - Solo es imprecisa en un borde: si el foro responde un error que **reemplaza** la vista, no avisa, y se ve el mensaje de la vista. Eso ya lo dice la misma subviñeta («… o la falta de acceso reemplazan la vista»), así que no pido cambio.
+- **E-1 a E-4, literales y en su lugar:**
+  - **E-2:** en §7.8, `:550`, después del párrafo de «Tarea».
+  - **E-1:** en §7.16, `:692`, la subviñeta «Foro» reemplazada. Es una de las tres líneas "cambiadas" y su cambio es el autorizado.
+  - **E-3:** en §7.22, `:789`, después de «Tarea».
+  - **E-4:** el párrafo nuevo de §7.14, `:671`, con su título en negrita y su marca.
+  - **§7.10:** la suma «Error» va como última subviñeta (`:595`) y la de «Error de la página siguiente», al final de la viñeta (`:596`).
+  - §7.3 no cambia.
+- **Las líneas ampliadas no pierden texto.** Lo comprobé con el texto viejo como prefijo exacto del nuevo:
+  - §7.10, base `:593` → `:596`;
+  - §7.14, «Lo abierto es de su clase», base `:666` → `:669`, con la regla de N-28 al final.
+
+  La tercera línea cambiada es la de E-1, que reemplaza a propósito.
+- **Nada más cambia.**
+- **El documento sigue coherente:** la numeración va de §7.33 a §7.34 y después a §8; las marcas son "propuesta (FORO-01)"; no hay contradicciones. La regla de N-28, al final de «Lo abierto es de su clase», queda junto a la del foco en las listas del mismo párrafo. Es un lugar razonable.
+
+### D-4: el texto literal y su lugar
+- **Lugar:** el párrafo «**Lo abierto es de su clase (CHORE-06a, propuesta):** …» de §7.14 (`DESIGN.md:669`).
+- **Ancla anterior**, la frase después de la cual se inserta: «Si la persona salta a otro con el historial, no aparece abierto en el nuevo ni reaparece al volver, y nada de lo escrito se envía al otro.»
+- **Lo que se inserta** inmediatamente después, separado por un espacio:
+  > En el foro, «Participantes» pertenece a su foro y la participación de un alumno, a su foro y a su alumno juntos (su `key` lleva los dos, como la entrega de un alumno), así que un salto a otro foro o a otro alumno la monta de nuevo (propuesta (FORO-01)).
+- **Lo comprobé en el código:** `ListaDeParticipantes` con `key={foroId}` y `ParticipacionDeUnAlumno` con `` key={`${foroId}:${alumnoId}`} ``; FORO-1E52 lo vigila.
+- Es redacción de una decisión ya autorizada (D-4), así que basta informar al humano.
+
+### Puntos de ataque para la ronda 2
+1. **La recarga tras un `409` con la clase archivándose en vuelo** (la vista sigue montada): con el foro y la participante en `5xx`, ¿ningún aviso de recarga al salir de `recargando`? ¿Y después, un fallo nuevo de fondo avisa una vez?
+2. **Dos `409` seguidos sobre la misma participación** con la primera recarga todavía en vuelo: ¿se cruzan las marcas o `recargando`? ¿Cuántos avisos salen?
+3. **La recarga tras un `409` en la que la participante responde bien y el foro con `5xx`:** el panel no se reinicia. ¿Se puede volver a calificar, y el siguiente `409` funciona?
+4. **El foco tras T-01** cuando el foro reemplaza la vista estando el foco en el panel: a la raíz, nunca a `<body>`.
+5. **Los puntos de la ronda 1 que siguen sin caso propio:**
+   - R-01e-14 con la recarga con datos que reemplaza la vista;
+   - fallos seguidos;
+   - los dos bloques a la vez;
+   - DH-21 con otra clase;
+   - los enlaces del gradebook con ids en mayúsculas.
+
+
+## Revisión final — FORO-01e y cierre de FORO-01 (2026-11-17)
+
+# Revisión del Manager — FORO-01e («Participantes», la participación de un alumno y calificar un foro) y cierre de FORO-01 — final
+Veredicto: **APROBADO**
+Verificación propia (desde `frontend/`, una a la vez; nadie más corría nada):
+- `npm run lint`: salida 0, `All matched files use Prettier code style!` y `tsc -b` sin errores.
+- `npm run build`: `✓ built in 836ms`, salida 0.
+- `npm run test`: `Test Files  382 passed (382)` y `Tests  9008 passed (9008)`, salida 0 (de 16:23:52 a 16:33:34).
+
+01e no toca `backend/` ni `shared/` (`git status` y `git diff --stat 24916a4` sobre los dos, vacíos), así que la suite del backend no hace falta.
+
+## Problemas que bloquean
+Ninguno.
+
+## Parte A: la subentrega 01e
+
+### 1. Las corridas y las cuentas
+- **La suite completa del frontend:** `Test Files  382 passed (382)` y `Tests  9008 passed (9008)`, salida 0 (de 16:23:52 a 16:33:34).
+- **Las cuentas cuadran con el cierre de 01d** (373 archivos y 8863 casos):
+  - archivos: 373 + 6 pruebas nuevas del programador + 3 `*.ataque` nuevas del tester = **382**;
+  - casos: 8863 + 128 + 9 + 7 + 1 = **9008**.
+
+  Las 2 de la lista cerrada y C-14 y C-16 cambian aserciones, no suman casos. Las dos cifras coinciden exactamente con mi corrida.
+
+### 2. "Se toca" y "No se toca"
+- **Dentro de los paquetes, contra `24916a4`:** 29 archivos de `frontend/`, nada en `backend/` ni en `shared/`.
+  - **16 de producción**, que son los 15 de §E13.14 en `frontend/` más `features/clases/hooks.ts` por DH-21 (a). Ese archivo sigue en `8ef81be0…`, con solo el import, el comentario y las tres invalidaciones.
+  - **6 pruebas nuevas del programador.**
+  - **Las 2 de la lista cerrada, solo en lo autorizado:** `features/calificaciones/lib.test.ts`, las cuatro URL con `conTipo=si`, y `lib/estado-por-id-estatico-ch6.test.ts`, las dos `key` de CH6-A30 (c).
+  - **5 `*.ataque`:** C-14, C-16 y las 3 nuevas del tester.
+  - `features/calificaciones/data.ts` y `hooks.ts` no se tocaron.
+- **Fuera de los paquetes, contra `fd4a7ad`:**
+  - `AGENTS.md` está en su SHA-256 registrado, `b874bf2c…`;
+  - `CLAUDE.md`, `docs/ARCHITECTURE-ESSENTIALS.md`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, `infra/` y `.claude/` no cambian;
+  - `plan.md` está en `f95bba80…`;
+  - `docs/ESTADO.md` y `docs/trabajo/` quedan fuera de la verificación.
+- **`docs/DESIGN.md`** (1041 líneas, `e507c0fd…`) es lo autorizado y nada más:
+  - la §7.34 autorizada, con la frase de T-01;
+  - E-1 a E-4;
+  - las sumas de §7.10 y la regla de N-28;
+  - D-4, comprobada **carácter por carácter**: la línea 669 de la copia previa más mi frase, insertada justo después del ancla, es igual a la línea 669 de hoy.
+- **V-01:** `sha256sum -c` sobre `v01-foro01e-r2.txt` (`84b3a6d0…`) da **312 de 312 `OK`**, y el árbol tiene 312 `*.ataque`.
+  - Ninguna del tester fue modificada, saltada ni borrada por el programador.
+  - Las dos que cambiaron en 01e (C-14 y C-16) las cambió el tester en la ronda 0 bis, como pedía el plan.
+
+### 3. Cumplimiento del plan y de las decisiones del humano en 01e
+- **La Enmienda 13 se cumplió completa.** La verifiqué en "Verificación de la Enmienda 13" y en su corrección. Lo que pedía, y está:
+  - las vistas «Participantes» y la participación de un alumno;
+  - el panel con un foro;
+  - «Comentarios de tu maestro»;
+  - los enlaces por tipo;
+  - N-39 y DH-21;
+  - `DESIGN.md`.
+- **Las decisiones del humano, al pie de la letra en el código:**
+  - DH-19, los textos (`features/tareas/data.ts`);
+  - DH-20 (a), el aviso de «Participantes»;
+  - DH-21 (a), la invalidación al agregar o quitar un alumno;
+  - DH-22 (b), «Cargando la participación…» y «Aún no hay participaciones de este alumno.»;
+  - la autorización de `DESIGN.md`.
+- **Cada prueba requerida tiene su caso**, de FORO-1E01 a FORO-1E55, con los casos de §E13.9 y los once «T-01:». Están en las seis pruebas nuevas, con los títulos que verifiqué en `npx vitest list` en las tres verificaciones de 01e.
+- **R-01e-1 a R-01e-14:** comprobados contra el código en "Verificación del resumen — FORO-01e — implementación". R-01e-14 quedó vigilado tras M-13, con H1 a H6.
+- **FORO-1E40 y FORO-1E41 cierran sus filas de `ESTADO.md` §3:**
+  - FORO-1E40 está en `vecinos-panel-01e.test.tsx:632`, en la tarea y en el foro;
+  - FORO-1E41 está en `:666-735`, en la tarea y en el foro, con la clase archivada y con la vista desmontada. La fila 33 (ADM-1D221) sigue verde (O-01e-2).
+
+  El texto de cada fila va en el punto 5.
+- **Las frases de recuperación:** cada una tiene su caso por camino, con el router real. Son FORO-1E20 a 1E35, 1E49, 1E54 y 1E55; las vio el tester en las dos rondas.
+- **La matriz de avisos y recargas:** coincide con el código, con la fila corregida por T-01. Ahora, si fallan a la vez el foro y la participante, salen dos avisos.
+- **La definición de terminado de `AGENTS.md`:**
+  - cumple RF-67 y RF-68 en su parte de interfaz (abajo, parte B);
+  - capas y middleware: sin endpoints nuevos en 01e;
+  - `lint`, `build` y `test` en verde;
+  - pruebas de autorización: no aplica, porque no hay endpoints nuevos;
+  - migración: no hay;
+  - `infra/` y `.env.example`: sin cambio;
+  - los documentos van en el cierre (punto 9).
+- **`CLAUDE.md`:**
+  - **Estructura de módulos:** los tipos están en `types.ts`, los textos en `data.ts`, las funciones puras en `lib.ts` y los ganchos en `hooks.ts`. Ningún módulo importa de otro: el import nuevo de `features/clases` sale de `services/`.
+  - **Componentes:** retornos tempranos y `ErrorDeCampo`.
+  - **Guardas y botones:** guardas con ref; `enEspera={isFetching}`.
+  - **Errores:** sin `?? []` y sin valores por omisión en `calificacion`.
+
+  Hay un valor por omisión de props que acepto: `TablaDeEntregas` con `textos` y `destinoDeFila` opcionales, que sin ellos pinta la tabla de hoy, como pedía el plan. No es un dato faltante.
+- **`DESIGN.md`:** la lista de diseño está en el punto 4.
+
+### 4. Lista de diseño (frontend)
+- **Lo implementado coincide con `DESIGN.md`.** Todo patrón nuevo de 01c1 a 01e quedó documentado en este encargo (§7.34 y las sumas).
+- **Valores:** solo tokens, sin valores sueltos (V-02 a V-07 de `styles/clases-r1.ataque`, en verde).
+- **Componentes:** los de `components/ui/` (`Card`, `Button`, `Badge`, `Table`), sin el aspecto por defecto de shadcn/ui.
+- **Sin rasgos prohibidos.** No hay vidrio nuevo. El estado siempre va con texto: `EstadoEntregaBadge` e «Insignia «Foro»».
+- **Una sola acción principal por vista:**
+  - «Participantes» y la participación de un alumno no tienen `primary` propio;
+  - el panel conserva su `primary` «Calificar y devolver».
+- **Textos:** en español de México y sin emojis.
+- **Estados:** error, carga y vacío en cada vista y en cada bloque.
+- **Accesibilidad:** foco visible y etiquetas; «Ver participación» lleva el nombre oculto.
+- **A 360 px:** no verificado por los agentes (sin navegador). Va en la comprobación humana, punto 2.
+
+### 5. Lo que decidí sin el humano en 01e
+- **En la verificación de la Enmienda 13:**
+  - N-41 a N-45 fueron ajustes de texto del plan, sin decisiones nuevas;
+  - en DH-21 comprobé que la única prueba afectada usa `toContainEqual`.
+- **En la verificación del resumen:**
+  - acepté las desviaciones 1 (con M-13), 2, 3, 5, 6, 7 y 8;
+  - llevé la 4 al humano (DH-22).
+- **En la corrección de M-13:**
+  - acepté los estados de R-01e-14 sin caso propio y los mandé como punto de ataque. El tester los atacó en la ronda 1 sin hallazgos (ATQ-FORO-149);
+  - redacté los ajustes literales E-1 a E-4.
+- **En la corrección de T-01:**
+  - acepté que la clase archivada vaya por el mismo `!vigente` sin caso propio. El tester lo atacó en la ronda 2 sin hallazgos;
+  - redacté D-4.
+- **Ya informados al humano, sin autorización nueva:**
+  - la frase de T-01 en §7.34, que usa un texto aprobado en 01c2;
+  - D-4, que es la redacción de una suma ya autorizada.
+
+### 6. `docs/ESTADO.md` §3: las filas que 01e cierra o cambia, y las nuevas del cierre de FORO-01
+Doy el texto para cada fila. El orquestador lo aplica con anclas únicas. "Al final de la columna" significa antes del ` | ` que la cierra.
+
+**Se cierran o se actualizan (filas existentes):**
+1. **CHORE-06a, los "sin caso" de CH6-A14 (`ESTADO.md:352`), se cierra.** En la segunda columna, reemplazar «**Queda solo** "rechazo del servidor seguido de uno local" en el panel de calificación, con destino FORO-01e (FORO-1E40)» por:
+   > «**Hecho en FORO-01e (2026-11-17):** "rechazo del servidor seguido de uno local" en el panel de calificación, en la tarea y en el foro (FORO-1E40, `features/tareas/vecinos-panel-01e.test.tsx`); no queda nada»
+
+   La referencia que sigue se conserva.
+2. **ADMIN-01d1 y 01d2, N-01d1-4 extendido (`:381`), se actualiza.** Reemplazar «**Quedan** calificar (fila 33), con destino FORO-01e (FORO-1E41), y el recurso (ruta 20, `RECURSO_MODIFICADO`), que sigue como riesgo declarado: FORO-01 no toca `features/clases` para eso» por:
+   > «**Hecho en FORO-01e (2026-11-17):** calificar (fila 33), en la tarea y en el foro: un `409` de calificar con la clase archivada o con la vista desmontada deja vieja la entrega o la participante sin pedirla, y volver a abrirla la pide (FORO-1E41; ADM-1D221 sigue verde). **Queda solo** el recurso (ruta 20, `RECURSO_MODIFICADO`), como riesgo declarado, con destino el próximo encargo que toque los ganchos de recursos de `features/clases`»
+3. **O-3 de CLASES-03a (`:403`).** FORO-01 no tocó `shared/src/entregas.ts`. En la segunda columna, reemplazar «El próximo encargo que toque `shared/src/entregas.ts` (probablemente FORO-01) o el `chore` de higiene de pruebas» por:
+   > «El próximo encargo que toque `shared/src/entregas.ts` o el `chore` de higiene de pruebas (FORO-01 no lo tocó)»
+4. **PR-1A17 (`:408`), se cierra.** En la segunda columna, reemplazar «FORO-01 (E-32; ADMIN-01 no tocó esa prueba ni la clave)» por:
+   > «**Hecho en FORO-01c1 (2026-11-16, commit `88b37af`):** la prueba lee `TEXTOS_FORMULARIO_RECURSO.sinTema` y `TEXTOS_FORMULARIO_PUBLICACION` ya no tiene `sinTema`»
+5. **O-r1-2 de CLASES-03e (`:415`).** En la segunda columna, reemplazar «FORO-01 (las réplicas usan el mismo control) o el carril trivial la próxima vez que se toque `ElementoDeDuda`» por:
+   > «El carril trivial la próxima vez que se toque `ElementoDeDuda`. FORO-01 hizo su propio control de réplicas con el defecto corregido en su diseño (DH-11 a; `DESIGN.md` §7.34), así que Dudas no cambió»
+6. **El foro en la exportación (`:546`), se cierra.** En «| **FORO-01** | ídem, S-03 y R-09 |» (ancla única), reemplazar «**FORO-01**» por:
+   > «**Hecho en FORO-01 (2026-11-17):** el foro vive en `tareas` y `entregas` (DH-01 a), así que es columna del gradebook y de la exportación sin cambiar `leerGradebookCon`; FORO-1E14 (`features/calificaciones/foro-01e.test.tsx`) prueba la columna del foro en el .xlsx»
+
+**Se suman (A-08 del plan; ninguna está todavía en §3):**
+
+| Pendiente | Destino | Referencia |
+|---|---|---|
+| FORO-01 (DH-02, pendiente con el cliente): la regla de participación tardía del foro. Hoy rige el valor por omisión: sin penalización, «Con retraso» después de la fecha límite si el foro acepta tardías, y cerrado si no; el maestro ve la fecha y hora de cada participación. Toda la regla vive en `reglaDeParticipacion` (`backend/src/core/foros/participacion.ts`), y calificar a quien no participó la consulta. Las opciones (b), sin marca y con cierre, y (c), nunca cierra, cambian además textos y RF-66 y RF-67 | Decisión del humano, cuando responda el cliente. La fila de O-r1-2 de FORO-01a se revisa con ella | `docs/trabajo/FORO-01-actividad-tipo-foro/plan.md`, DH-02 y R-11 |
+| FORO-01 (DH-05, R-06): la moderación del foro es solo del admin, que borra cualquier participación o réplica. Un maestro que ve algo inapropiado tiene que pedírselo a administración, y no queda registro de quién borró (S-E3-2) | DEPLOY: antes de abrir a usuarios reales, decidir si los maestros también borran y si hace falta un registro de quién borró | `plan.md`, DH-05, PB-1 y R-06; `aprobacion.md`, la decisión del humano del 2026-11-05 |
+| FORO-01 (R-01 y E1-25): una pestaña con el frontend anterior y foros creados ve la columna del foro en el gradebook, en "Mis calificaciones" y en la exportación, con un enlace a la vista de una tarea («Esa tarea ya no existe.»); se corrige al recargar. El frontend del foro se despliega completo | DEPLOY: desplegar el backend y enseguida el frontend completo de FORO-01 | `plan.md`, R-01 y E1-25 |
+| FORO-01 (R-04): las dos migraciones del foro (`20261114223913_foro_01_tipo_foro` y `20261114224719_foro_01_participaciones`) van después de las de ADMIN-01 | DEPLOY: aplicarlas con `prisma migrate deploy`, nunca con `migrate dev`, en `prod` | `plan.md`, R-04 |
+| FORO-01 (DH-09 a, R-E7-4): el opt-in de compatibilidad del foro. `conForos=si`, junto a `seccion=actividades`, en las listas de «Actividades» (`GET …/trabajo` y `GET …/temas`), y `conTipo=si` en el gradebook y en "Mis calificaciones"; sin ellos, la respuesta es la de antes del foro. Más la exclusión del tipo `foro` en `GET …/publicaciones` sin `tipo` | El retiro de compatibilidad e higiene de pruebas, antes de DEPLOY, con el de CLASES-02, CLASES-03 y ADMIN-01. Junto a la fila de O-01b-3 | `plan.md`, DH-09 y R-E7-4; `shared/src/tareas.ts` y `shared/src/calificaciones.ts` |
+| FORO-01 (P-11): los avisos del foro. Crear un foro encola `TAREA_CREADA` y su `RECORDATORIO_24H`; los consumidores deben tratar el foro, cuyos destinatarios del recordatorio son quienes no tienen `fecha_entrega`. Participar y replicar no encolan nada (S-09); los avisos candidatos son la participación en un foro a los maestros y la réplica a su autor | NOTIFICACIONES | `plan.md`, A-08 y S-09; PRD, "Avisos de "Dudas" y del foro" |
+
+**No cambian:** las filas de FORO-01a y 01b (`:360` a `:363`); las de 01c2 (los ids de la URL, `errorElement`); la de 01d («Borrar» sin nombre); y N-40, ya en `:422`. Siguen con su destino.
+
+### 7. El conteo de 01e
+| Concepto | Valor |
+|---|---|
+| Rondas del tester | r0 (comprobación de arranque) + r0 bis (C-14 y C-16) + r1 **ROTO** (T-01) + r2 **RESISTE**: 2 rondas de ataque |
+| Rondas extra por hermanos o estados vecinos | 0 (umbral de 2: no). T-01 fue el estado vecino que yo había marcado como punto de ataque 2 y salió en la primera ronda |
+| Resúmenes devueltos | 1 de 3 (M-13: R-01e-14 sin prueba en «Comentarios de tu maestro»). Las correcciones de M-13 y de T-01 se aceptaron a la primera |
+| Paradas | 0 |
+| Decisiones del humano | 6, todas en la opción recomendada: aprobar la Enmienda 13, DH-19 (textos), DH-20 (a), DH-21 (a, con la autorización de `features/clases/hooks.ts`), DH-22 (b) y autorizar `docs/DESIGN.md` |
+| Enmiendas del plan | 1: la 13, antes de arrancar, corregida una vez (N-41 a N-45) |
+| Interrupciones | 2: el atasco del programador (600 s sin progreso; el orquestador comprobó el árbol y lo reanudó) y el límite de uso del tester |
+| Desviación de proceso del programador | el código antes que las pruebas: la segunda vez en FORO-01, después de la de 01c2 y del recordatorio. En la corrección de M-13 y en la de T-01 lo hizo bien: primero los casos, con su rojo |
+
+**Lo que 01e enseña:**
+- **Al programador:** el rojo primero no es un orden por gusto. Una mutación demuestra que un caso vigila, pero solo para los casos que se mutan, y M-13 fue justo el caso sin rojo.
+- **Al arquitecto:**
+  - en una matriz con dos lecturas que se recargan juntas, inventariar las cuatro combinaciones de fallo (T-01);
+  - un caso de "sin ciclo" no prueba que la acción ocurrió: hay que afirmar también la lectura de más (M-13);
+  - todo texto para `DESIGN.md` se ubica por ancla, no por número de línea (D-1), y toda suma va literal para que el humano la autorice tal cual (E-1 a E-4).
+
+### 8. El commit de 01e
+- `git add -n -A -- frontend docs/DESIGN.md docs/ESTADO.md docs/trabajo/FORO-01-actividad-tipo-foro` da **36 rutas**:
+  - 29 de `frontend/`;
+  - `docs/DESIGN.md`;
+  - `docs/ESTADO.md`;
+  - los 5 de la carpeta del encargo (`aprobacion.md`, `plan.md`, `reporte-tester.md`, `resumen-programador.md` y `revision.md`).
+- `docs/trabajo/DEPLOY-investigacion-vps.md` **queda fuera**: el dry-run no lo nombra.
+- Con los documentos del cierre que autorice el humano, se suman hasta 5 rutas, **41** en total: `CLAUDE.md`, `AGENTS.md`, `docs/ARCHITECTURE-ESSENTIALS.md`, `docs/PRD.md` y `docs/ARCHITECTURE.md`.
+- No ejecuté ningún `git add` real.
+
+## Parte B: el cierre de FORO-01 (RF-66 a RF-68)
+
+### 9. ¿FORO-01 cumple RF-66 a RF-68 y sus RN?
+**Sí**, con las seis subentregas: 01a `451aa35`, 01b `ebbcb40`, 01c1 `88b37af`, 01c2 `60b5c88`, 01d `24916a4` y 01e en el árbol. Cada una cerró con mi revisión final en APROBADO.
+- **RF-66, crear un foro:**
+  - **Backend (01a):** las rutas 1 a 5, con `TAREA_CREADA` y `RECORDATORIO_24H` encolados en la misma transacción y cancelados y recreados al editar o borrar. Cumple las reglas 5 y 8.
+  - **Frontend (01c2):** crear, editar, ver y borrar el foro con el formulario de la tarea (planteamiento con adjuntos opcionales, fecha límite, puntos, rúbrica, tardías, categoría y tema).
+  - **Dónde se ve:** en «Foro» (01c1) y en «Actividades de aprendizaje» (01b con `conForos`, 01d en la interfaz).
+- **RF-67, participar:**
+  - **Backend (01a):** la principal única por alumno (índice único parcial y orden de bloqueo) y las réplicas, con `reglaDeParticipacion`.
+  - **Moderación (01b):** la ruta 17, solo del admin y cerrada en una clase archivada (DH-05, PB-1 y PB-2).
+  - **Frontend (01d):** publicar y replicar, «Tu participación» y «Borrar» del admin.
+  - **Lo que pide P-09:** el alumno no edita ni borra; ve las de los demás; las réplicas cierran con la misma regla (DH-03 y DH-04); solo texto; sin hilo privado.
+  - **El riesgo:** el foro vencido sin principal cuenta en "sin entregar", porque reutiliza `entregas` (DH-01 a).
+- **RF-68, calificar:**
+  - **Backend (01a):** la ruta 16, solo de maestros (S-01), con la versión y la rúbrica de la tarea.
+  - **Frontend (01e):** «Participantes», la participación de un alumno con el panel y las devoluciones, y la calificación con «Comentarios de tu maestro» en «Tu participación».
+  - **El gradebook, "Mis calificaciones" y la exportación** lo cuentan en su categoría (01a), con los enlaces por tipo (01b con `conTipo`, 01e en la interfaz).
+- **Las RN que cita el plan:**
+  - **RN-03:** el alumno restringido no ve foros (el sexto paso, 01a).
+  - **RN-05:** pondera en su categoría y calificar a quien no participó sigue la regla.
+  - **RN-07:** la autoría del planteamiento, como en las tareas, y la moderación del admin.
+  - **RN-08:** "la entrega es participar".
+  - **La regla 3 (estado de pago):** ninguna respuesta del foro lo trae; el tester lo comprobó por grep en 01e.
+- **Lo que quedó fuera a propósito, con su destino:**
+  - **DH-02, la regla tardía:** pendiente con el cliente. Rige el valor por omisión y vive en una sola función. Va a la fila nueva de §3.
+  - **El opt-in `conForos` y `conTipo`:** se retira en el `chore` de retiro de compatibilidad, antes de DEPLOY (fila nueva y O-01b-3).
+  - **La moderación por maestros y el registro de quién borró** (DH-05, PB-1 a, S-E3-2): DEPLOY.
+  - **Los avisos del foro (P-11):** NOTIFICACIONES.
+  - **R-01, R-02 y R-04:** DEPLOY.
+  - **El recurso (ruta 20)** de la fila de ADMIN-01d: los ganchos de recursos de `features/clases`.
+  - **Exámenes y DH-17 (a):** el diálogo de borrar una clase no nombra las participaciones, por decisión del humano.
+
+### 10. Los documentos del cierre: texto literal y lugar
+Los aplica el orquestador con la autorización escrita del humano, con anclas únicas. Comprobé cada ancla con un conteo: todas aparecen **una sola vez**, salvo la que digo. Comprobé cada texto contra el código de hoy.
+
+**Lo que ya no aplica del plan:**
+- "§7.32" de A-06 (es §7.34, ya hecho);
+- `services/trabajoService.ts` con las claves de participaciones, réplicas, participantes y devoluciones (N-35: viven en `features/tareas/lib.ts`);
+- "Participaciones" como nombre de la tabla del maestro (es «Participantes», E1-10);
+- en ARCHITECTURE §14, las columnas previstas `tarea_id` y `padre_id` (las migradas son `foro_id` y `principal_id`).
+
+#### 10.1 `CLAUDE.md` (cuatro cambios en la tabla de módulos y en "Ubicaciones compartidas")
+1. **Fila `clases`.**
+   - Ancla: «y "Clases archivadas" del maestro (ADMIN-01) | Estudiante, Maestro, Administrador |».
+   - Insertar, antes de « | Estudiante, Maestro, Administrador |»:
+     > «; la sección «Foro» (la lista de foros de la clase, con «Crear foro» para maestro y administrador fuera de las clases archivadas) y, en «Actividades de aprendizaje», la fila del foro con «Crear foro» y «Mover» (FORO-01)»
+2. **Fila `tareas`.**
+   - Ancla: «(CALIFICACIONES-01) | Estudiante, Maestro, Administrador |».
+   - Insertar, antes de « | Estudiante…»:
+     > «; el foro (FORO-01): crear y editar con el formulario de la tarea, su detalle con el planteamiento, las participaciones y las réplicas (publicar y replicar; el administrador borra), «Tu participación» del alumno con su calificación y «Comentarios de tu maestro», y, para maestro y administrador, «Participantes» y la participación de un alumno con el panel de calificación y los comentarios de la devolución»
+3. **Fila `calificaciones`.**
+   - Ancla: «Calificar una entrega vive en `tareas` | Estudiante, Maestro, Administrador |».
+   - Insertar, después de «vive en `tareas`»:
+     > «. Desde FORO-01, la celda de un foro en el gradebook enlaza a la participación del alumno y "Mis calificaciones" enlaza al foro (las dos piden `conTipo=si`)»
+4. **"Ubicaciones compartidas", dos entradas:**
+   - **`services/trabajoService.ts`.**
+     - Ancla: «`consultaTarea`), compartidas por `features/clases` y `features/tareas`».
+     - Sumar al final de la entrada:
+       > «, y las del foro (`clavePrefijoDeForos`, `claveListaDeForos`, `claveForo` y `consultaForo`; FORO-01); las de las participaciones, las réplicas, «Participantes» y las devoluciones viven en `features/tareas/lib.ts`»
+   - **`services/calificacionesService.ts`.** Es un cambio que el plan no traía, pero hace falta: DH-21 (a) hizo que `features/clases` la importe.
+     - Reemplazar «compartidas por `features/tareas`, que las marca viejas al calificar, y `features/calificaciones`» por:
+       > «compartidas por `features/tareas`, que las marca viejas al calificar, `features/clases`, que las marca viejas al agregar o quitar un alumno (FORO-01, DH-21), y `features/calificaciones`»
+
+#### 10.2 `docs/ARCHITECTURE-ESSENTIALS.md` (cinco cambios)
+1. **"Tablas".**
+   - Reemplazar «`dudas` (CLASES-03) · » por:
+     > «`dudas` (CLASES-03) · `participaciones_foro` (FORO-01) · »
+2. **El párrafo «**Previsto (DOCS-04), sin migrar; cada encargo lo confirma en su plan:** `publicaciones.tipo` suma `foro` (FORO-01)…».** Se reemplaza entero, hasta «La exportación .xlsx no lleva tabla.», por:
+   > «**Desde FORO-01:** `publicaciones.tipo` suma `foro`, con su fila 1:1 en `tareas` como la tarea, y `participaciones_foro` guarda la participación principal y las réplicas de un foro. La exportación .xlsx no lleva tabla.»
+3. **"Restricciones clave".**
+   - Al final de la línea, reemplazar «(CLASES-03).» (la única aparición seguida de salto de línea) por:
+     > «(CLASES-03) · un foro es una publicación de tipo `foro` con su fila 1:1 en `tareas` y una fila de `entregas` por alumno; el `CHECK publicaciones_titulo_segun_tipo` le exige título, como a la tarea · `participaciones_foro`: la principal y las réplicas en una tabla (`principal_id` nulo en la principal; FK a sí misma con `CASCADE`, y a `tareas` con `CASCADE`); una sola principal por (`foro_id`, `autor_id`), con el índice único parcial `participaciones_foro_una_principal`, escrito a mano en la migración (FORO-01).»
+   - Lo comprobé en la migración `20261114224719_foro_01_participaciones`.
+4. **"Reglas de negocio", viñeta "Autoría".**
+   - Ancla: «y desde FORO-01, el planteamiento de un foro, como una tarea.».
+   - Insertar después, con un espacio:
+     > «En un foro, nadie edita lo publicado y el alumno no borra lo suyo; solo el admin borra cualquier participación o réplica (una principal, con sus réplicas), con `puedeBorrarParticipacion`. Si la entrega ya estaba calificada, se conserva todo; si no, el alumno vuelve a «sin participar» (DH-05, PB-1 y PB-2 de FORO-01).»
+5. **"Reglas de negocio", viñeta "Foro" (empieza «- Foro (DOCS-04; FORO-01): una actividad calificable…»).** Se reemplaza entera por:
+   > «- Foro (DOCS-04; FORO-01): una actividad calificable con los campos de una tarea (fecha límite, puntos, rúbrica opcional, tardías, categoría, tema): una publicación de tipo `foro` con su fila 1:1 en `tareas` y una fila de `entregas` por alumno para el estado y la calificación, así que el gradebook, "Mis calificaciones", la exportación, el riesgo y el recordatorio de 24 h lo cuentan como una tarea. "La entrega es participar": entregó quien publicó su participación principal. El alumno publica una principal y réplicas en cualquier principal, incluida la suya y sin haber publicado la propia; los maestros replican siempre y sin marca de retraso; el admin lee, no participa ni replica. La regla de tardías vive solo en `reglaDeParticipacion` (`core/foros/participacion.ts`), con un valor por omisión mientras el cliente decide (DH-02): sin penalización, «Con retraso» después de la fecha límite si el foro acepta tardías y cerrado si no; calificar a quien no participó consulta la misma regla. La marca de retraso de los demás solo la ven los maestros y el admin (`verRetrasoDe`). Lo califica un maestro de la clase con el panel de la tarea; la devolución es el comentario opcional al calificar y solo se lee junto a la calificación; el admin no califica. Las rutas cuelgan de `/clases/{claseId}/foros`; participar y replicar no encolan eventos.»
+6. **"Interfaz".** Reemplazar «Hasta FORO-01 son seis; el indicador» por «El indicador».
+
+Lo demás ya dice lo vigente: "Trabajos diferidos", uno por actividad, y la viñeta "Secciones de la clase" de las reglas de negocio, siete.
+
+#### 10.3 `docs/PRD.md` (seis cambios)
+1. **RF-67:**
+   - Reemplazar «réplicas libres a las de otros» por:
+     > «réplicas libres en cualquier participación principal, también la suya, sin necesidad de haber publicado la propia»
+   - Reemplazar «las réplicas siguen la misma regla de cierre que la principal; los maestros replican y el Administrador lee; solo texto;» (ancla única; el fragmento corto aparece también en §11) por:
+     > «las réplicas siguen la misma regla de cierre que la principal; los maestros replican en cualquier momento; el Administrador lee y puede borrar cualquier participación o réplica (una principal, con sus réplicas; la calificación se conserva; FORO-01); solo texto;»
+   - Al final de la celda, antes de « | M |», después de «(P-09, decisión del humano, 2026-10-26)»:
+     > «. Mientras el cliente decide la regla de participación tardía (DH-02 de FORO-01), rige un valor por omisión: sin penalización, «Con retraso» si se publica después de la fecha límite en un foro que acepta tardías, y cerrado si no; el maestro ve la fecha y hora de cada participación, y la marca de retraso de los demás solo la ven los maestros y el Administrador»
+2. **RF-68.** Reemplazar «como cualquier actividad | M |» por:
+   > «como cualquier actividad. La devolución es el comentario opcional al calificar, y el alumno la lee junto a su calificación ("Comentarios de tu maestro"). A quien no participó se le califica cuando el foro ya cerró, con la misma regla que la participación. El Administrador lee la calificación y no califica (FORO-01) | M |»
+3. **RN-05.** Reemplazar «entre las actividades vencidas sin entregar (RN-08; DOCS-04).» por:
+   > «entre las actividades vencidas sin entregar (RN-08; DOCS-04). Calificar a quien no participó en un foro sigue la misma regla de cierre que la participación (FORO-01).»
+4. **RN-07.** Reemplazar «En un foro, el planteamiento sigue la regla de las tareas (FORO-01).» por:
+   > «En un foro, el planteamiento sigue la regla de las tareas; nadie edita las participaciones ni las réplicas y el alumno no borra lo suyo; el Administrador borra cualquiera (una principal, con sus réplicas): si la entrega ya estaba calificada, se conserva, y si no, el alumno vuelve a "sin participar" (FORO-01).»
+5. **RN-08, viñeta "Foro".** Reemplazar «Se califica por alumno y pondera en su categoría (RF-68, RN-05).» por:
+   > «Se califica por alumno y pondera en su categoría (RF-68, RN-05). La regla de participación tardía tiene un valor por omisión mientras el cliente decide (RF-67; DH-02 de FORO-01).»
+6. **§6, "Vistas".** Después de la viñeta «- **Administrador:** "Gestión de clases" suma la lista de clases archivadas (restaurar, borrar definitivamente) y duplicar (ADMIN-01).», agregar un bloque nuevo, separado por una línea en blanco:
+   > «**Desde FORO-01 (hecho, 2026-11-17).** Lo que quedó en cada rol:
+   > - **Estudiante:** «Foro», la lista de foros de la clase; y el detalle de un foro, con las participaciones de la clase, sus réplicas y «Tu participación» (su estado, su calificación y "Comentarios de tu maestro").
+   > - **Maestro:** «Foro» y el detalle de un foro (crear, editar, borrar y replicar); el foro en «Actividades de aprendizaje»; «Participantes», con los alumnos, su estado y «Ver participación»; y la participación de un alumno, con lo que escribió, el panel de calificación y los comentarios de la devolución.
+   > - **Administrador:** lo mismo que el maestro dentro de «Gestión de clases», salvo replicar y calificar; además borra participaciones y réplicas.»
+7. **§11, "Supuestos y preguntas abiertas".** Al final de la pregunta 13, después de «sin hilo privado.», sumar:
+   > « **Sigue abierta (FORO-01, DH-02):** la regla de participación tardía; hoy rige el valor por omisión de RF-67.»
+
+#### 10.4 `docs/ARCHITECTURE.md` (§7 y §14)
+1. **§7, la tabla de rutas.** Después de la fila «| `calificaciones` | …», agregar una fila:
+   > «| `foros` (FORO-01; `handlers/foros.ts`) | bajo `/clases/{claseId}/foros`: `POST` y `GET` (lista paginada) · `GET`, `PUT` y `DELETE /{foroId}` (con participaciones, solo el admin y con `?confirmar=entregas`) · `GET /{foroId}/mi-participacion` y `…/mi-participacion/devoluciones` (alumno) · `GET` y `POST /{foroId}/participaciones` (publica el alumno) · `GET` y `POST …/participaciones/{participacionId}/replicas` (replican el alumno y los maestros) · `DELETE …/participaciones/{participacionId}` (solo el admin) · `GET /{foroId}/participantes`, `…/participantes/{alumnoId}`, `…/{alumnoId}/participaciones` y `…/{alumnoId}/devoluciones` (maestros y admin) · `PUT …/participantes/{alumnoId}/calificacion` (solo maestros). En una clase archivada, maestros y admin leen y las escrituras quedan cerradas. Hasta el retiro de compatibilidad: `conForos=si` (con `seccion=actividades`) en `GET …/trabajo` y `GET …/temas`, y `conTipo=si` en el gradebook y "Mis calificaciones" |»
+2. **§7, "Rutas previstas (DOCS-04)".** Quitar la viñeta «- **FORO-01:** el foro se crea, edita y borra con las rutas de tareas …`PUT …/entregas/{alumnoId}/calificacion`.» completa: ya no está prevista y su forma cambió.
+3. **§14, fila `publicaciones`:**
+   - Reemplazar «`tipo` (`anuncio` / `material` / `tarea`)» por «`tipo` (`anuncio` / `material` / `tarea` / `foro`)».
+   - Reemplazar «`CHECK`: el anuncio no lleva título; el material y la tarea sí» por:
+     > «`CHECK publicaciones_titulo_segun_tipo`: el anuncio no lleva título; el material, la tarea y el foro sí (FORO-01)»
+4. **§14, tabla de tablas.** Después de la fila «| `dudas` | …», agregar:
+   > «| `participaciones_foro` | `id`, `foro_id` (FK a `tareas`, `CASCADE`), `autor_id` (FK `RESTRICT`), `principal_id` (nulo en la principal; FK a sí misma, `CASCADE`), `texto`, `con_retraso`, `creado_en` | índices `(foro_id, principal_id, creado_en, id)`, `(principal_id, creado_en, id)` y `(foro_id, autor_id, creado_en, id)` · único parcial `participaciones_foro_una_principal (foro_id, autor_id) WHERE principal_id IS NULL`, escrito a mano en la migración. El estado, el retraso y la calificación del alumno siguen en su fila de `entregas`: la principal fija `fecha_entrega` (FORO-01) |»
+5. **§14, "Previsto (DOCS-04), no migrado".** Quitar las filas «| `publicaciones.tipo` | FORO-01 | …» y «| `participaciones_foro` | FORO-01 | …»: ya están migradas.
+
+#### 10.5 `AGENTS.md`: la regla con las lecciones (la decide el humano)
+De las nueve de §E13.12 y las dos de 01e, recomiendo **seis como regla** y **una como suma a una regla que ya existe**:
+- (8) se integra en (1);
+- (9) va en la regla de las frases de recuperación;
+- las de 01e van en (3) y en una nueva.
+
+No recomiendo regla para lo que ya cubren las de hoy (la matriz de avisos y la de "hermanos").
+
+**Lugar:** en "Reglas del equipo", después de la viñeta «**Toda frase de recuperación…**» y antes de «- **Transcripción con cotejo (regla de respaldo).**».
+
+**Texto, una viñeta nueva:**
+> «- **Inventarios del plan, por subentrega (lecciones de FORO-01; decisión del humano, {fecha}).** Además de las listas cerradas por grep, el arquitecto inventaría: (1) las pruebas que leen el código, empezando por las pruebas (cada lista cerrada, cuenta o línea de las que leen `import.meta.glob`, `readFileSync` o `?raw`, y las consultas de `alert` sobre todo el documento), contra los archivos nuevos y cambiados; (2) las pruebas que fijan una conducta con la vista desmontada, sin observador o por conteo de peticiones; (3) las mutaciones, también de otros módulos, que cambian lo que muestra una vista nueva, con la clave que invalidan y su alcance; (4) las claves de caché nuevas: que ningún id ocupe la posición de un segmento fijo y que se armen con el id canónico; (5) en toda lista paginada que escribe la respuesta de una mutación, el caso con páginas pendientes y su regla de unión; (6) en todo bloque nuevo, a dónde va el foco cuando un control desaparece por una recarga, un `409`, un `404` o la clase en solo lectura, y qué ve la persona en lugar de cada aviso excluido. En una vista que recarga dos lecturas a la vez, la matriz trae las cuatro combinaciones de fallo; y un caso de "sin ciclo" afirma también que la acción ocurrió. Motivo: las PARADAS y las rondas de FORO-01c2, 01d y 01e.»
+
+**Suma a la regla de las frases de recuperación.** Ancla: «ir a otra sección y regresar antes de que venza el `staleTime`, y repetir el control que falló;». Reemplazar por:
+> «ir a otra sección y regresar antes de que venza el `staleTime`, y repetir el control que falló; en una sección montada con `key={claseId}`, también saltar a la misma sección de otra clase y volver;»
+
+**No necesitan cambio:** `docs/DESIGN.md`, ya aplicado y comprobado; `infra/`; `.env.example`; los README del backend (A-05, hechos en 01b).
+
+### 11. La comprobación humana única, lista para entregar
+Máximo 10 minutos. Necesita una clase con un foro calificable, un alumno que ya participó y otro que no, y un maestro de esa clase.
+
+1. **Los tres roles, a 360 px y en escritorio:** dentro de una clase, «Foro» aparece tercera de siete secciones y el indicador se pone bajo la sección activa al cambiar de sección.
+2. **Maestro, a 360 px:** «Participantes» de un foro y la participación de un alumno (lo que escribió, el panel de calificación y «Comentarios de la devolución»). Nada se sale de la pantalla ni se encima.
+3. **Alumno, con el teclado:**
+   - al publicar una participación, el foco queda en un lugar visible;
+   - si otra persona borra una principal mientras están abiertas sus réplicas, sale el aviso «Esa participación ya no existe.» y el foco queda en «Participaciones».
+4. **Admin, con lector de pantalla si se puede:** cada «Borrar» dice de quién es («Borrar participación de …»), y el bloque de réplicas se anuncia como «Réplicas».
+5. **Alumno, a 360 px:** el panel «Participaciones» y el control de réplicas («Ver réplicas (n)», «Replicar», «Ocultar réplicas») caben y se leen.
+6. **Maestro:** desde una celda del foro en el gradebook se llega a la participación de ese alumno. Califícala con rúbrica y comentario, y al volver con «Volver a los participantes», «Participantes» dice «Participaron n de m alumnos.».
+7. **Alumno:** en «Tu participación» del foro calificado se ven la calificación y «Comentarios de tu maestro», con el comentario del punto 6.
+
+**No verificado por decisión del humano, cubierto por pruebas automáticas:**
+- el formulario de «Nuevo foro»;
+- la fecha y hora con «Con retraso» que ve el maestro;
+- el foro en una clase archivada;
+- O-01d-5, publicar con más de 20 (ATQ-FORO-135, FORO-1D62 y los ataques de la ronda 2 de 01d);
+- los avisos de recarga y sus exclusiones (FORO-1E33, 1E49, T-01 y ATQ-FORO-148 a 157);
+- el contraste, que cubren las pruebas de tokens.
+
+### 12. El PR único de FORO-01 (DH-16 a)
+**La rama queda lista para el PR** después de cuatro pasos:
+1. el commit de 01e;
+2. la comprobación humana;
+3. el commit de los documentos del cierre, si el humano los autoriza: puede ir en el mismo commit de 01e o en uno de documentos, como él decida;
+4. la actualización de `docs/ESTADO.md` por el orquestador.
+
+**La descripción, en pocas líneas:**
+> FORO-01 · actividad tipo foro (RF-66 a RF-68). Seis subentregas en seis commits (01a `451aa35`, 01b `ebbcb40`, 01c1 `88b37af`, 01c2 `60b5c88`, 01d `24916a4` y 01e). Trae: el foro como actividad calificable (una publicación de tipo `foro` con su fila en `tareas` y `entregas` por alumno); 17 rutas bajo `/clases/{claseId}/foros`; participar y replicar, con la moderación del admin; calificar con el panel de la tarea; la sección «Foro», el foro en «Actividades de aprendizaje», «Participantes» y la participación de un alumno; los enlaces por tipo en el gradebook y "Mis calificaciones"; y `DESIGN.md` §7.34. **Dos migraciones** (01a), compatibles hacia atrás: `20261114223913_foro_01_tipo_foro` (el CHECK de título acepta `foro`) y `20261114224719_foro_01_participaciones` (la tabla, sus índices y el índice único parcial). Se aplican con `migrate deploy`. **No trae:** la regla de participación tardía definitiva (DH-02, pendiente con el cliente; rige un valor por omisión), los avisos del foro (NOTIFICACIONES) ni la moderación por maestros (DEPLOY). Lleva un opt-in de compatibilidad (`conForos`, `conTipo`) que se retira antes de DEPLOY. Carril sensible; cada subentrega cerró con la revisión del manager en APROBADO y sus rondas del tester.
+
+**Al fusionar, revisar:**
+- `docs/ESTADO.md` se concilia con `main`: la otra copia de trabajo y `DEPLOY-investigacion-vps.md`, que no entra en el PR;
+- que `main` no haya cambiado `app/router.tsx`, `features/tareas/` ni `features/clases/hooks.ts` desde `fd4a7ad`. Si cambió, correr las suites completas de los dos paquetes sobre la fusión;
+- que el opt-in quede registrado en ESTADO §3 para el retiro;
+- que la fusión no aplique migraciones a ninguna base que no sea local.
+
+## Problemas que no bloquean
+Ninguno nuevo.
+
+## Detalles menores
+- El título de FORO-1E47 ya está corregido.
+- En §7.14 de `DESIGN.md`, la regla de N-28 quedó al final de «Lo abierto es de su clase», junto a la del foco de las listas. Es un lugar razonable; si el humano la quiere en el párrafo nuevo del foco al encabezado, es un cambio de forma.
+
+## Desacuerdos arbitrados
+- **En 01e:** ninguno entre programador y tester.
+- **Las desviaciones del programador:** las arbitré en la verificación del resumen.
+- **DH-22:** la decidió el humano.
+
+## Documentos a actualizar
+- Los del punto 10: `CLAUDE.md`, `ARCHITECTURE-ESSENTIALS.md`, `PRD.md`, `ARCHITECTURE.md` y, si el humano la acepta, la regla de `AGENTS.md`.
+- `docs/ESTADO.md`, con el punto 6 y el conteo del punto 7: la medición de 01e y los conteos finales de pruebas (A-10).
+
+## Para el humano
+- **Autorizar por escrito los documentos del cierre (punto 10).** Su texto es literal y sus anclas son únicas.
+- **Decidir la regla de `AGENTS.md` (10.5).** Recomiendo aceptarla.
+- **Hacer la comprobación (punto 11)**, de 7 puntos y 10 minutos.
+- **Decidir el commit de 01e** (36 rutas, o 41 con los documentos) y después el PR único.
+- **DH-02** sigue pendiente con el cliente, sin bloquear.
+- **La desviación de proceso del programador** (el código antes que las pruebas, por segunda vez) no costó una ronda extra, pero dejó M-13 sin rojo. Las dos correcciones siguientes ya fueron con el caso primero.
+
+
+## Verificación de los documentos del cierre — FORO-01 (2026-11-17)
+
+**Veredicto: los cinco quedan listos para el commit.**
+- `CLAUDE.md`, `AGENTS.md`, `docs/ARCHITECTURE-ESSENTIALS.md` y `docs/PRD.md`: **listos tal cual**.
+- `docs/ARCHITECTURE.md`: **listo**, con tres ajustes de coherencia que recomiendo y que no bloquean (A-1 a A-3, abajo).
+
+Revisé por lectura, sin correr suites, con `git diff --no-index` (por líneas y por palabras) de cada archivo contra su copia en `foro01-arranque/docs-antes-cierre/`.
+- Los SHA-256 coinciden con los del orquestador: `6d03889f…`, `003d81ba…`, `06bac3e6…`, `f644e602…` y `4518c40c…`, contra las copias `bad2a776…`, `b874bf2c…`, `9b906870…`, `12f3c364…` y `79c312b0…`.
+- **Cada texto entre «» del punto 10 aparece una sola vez**, literal, en el archivo que le toca: lo comprobé con un script sobre mis 24 citas. `{fecha}` quedó como `2026-11-17`.
+- **Ningún otro cambio:** el diff por palabras solo muestra mis inserciones y reemplazos.
+- **Las tablas tocadas conservan su número de columnas:**
+  - `CLAUDE.md`, la tabla de módulos (3);
+  - PRD, RF-66 a RF-69 (3);
+  - ARCHITECTURE §7 (2) y §14 (3), con las filas vecinas iguales.
+- No se movió ningún encabezado.
+
+### Por archivo
+- **`CLAUDE.md` (5 cambios): listo.**
+  - Las celdas `clases`, `tareas` y `calificaciones` suman su texto antes de « | Estudiante, Maestro, Administrador |».
+  - Las entradas de `services/trabajoService.ts` y `services/calificacionesService.ts` quedan como las escribí.
+  - Sigue importando `@AGENTS.md`.
+- **`AGENTS.md` (2 cambios): listo.**
+  - La suma a la regla de las frases de recuperación va en su lugar.
+  - La viñeta nueva «**Inventarios del plan, por subentrega…**» queda después de esa regla y antes de «**Transcripción con cotejo**», dentro de "Reglas del equipo".
+- **`docs/ARCHITECTURE-ESSENTIALS.md` (6 cambios): listo.**
+  - "Tablas" y el párrafo «**Desde FORO-01:**» (el «Previsto (DOCS-04)» solo traía lo de FORO-01, así que reemplazarlo entero es correcto).
+  - "Restricciones clave", "Autoría", la viñeta "Foro" e "Interfaz".
+  - Dice lo mismo que PRD RF-67, RF-68, RN-07 y RN-08, y que ARCHITECTURE §14.
+- **`docs/PRD.md` (9 cambios): listo.**
+  - RF-67 (tres cambios), RF-68, RN-05, RN-07, RN-08 y §11, pregunta 13.
+  - El bloque «**Desde FORO-01 (hecho, 2026-11-17).**» de §6 va antes del de ADMIN-01, con su línea en blanco.
+  - Los dos bloques "Desde …" quedan en orden inverso a su fecha. Ese orden lo fijó mi ancla y no cambia el sentido.
+- **`docs/ARCHITECTURE.md` (7 cambios): listo.**
+  - La fila `foros` en §7, después de `calificaciones`.
+  - La viñeta prevista de FORO-01, quitada; queda EXAMENES.
+  - La fila `publicaciones` con `foro` y el `CHECK` por nombre.
+  - La fila `participaciones_foro` después de `dudas`.
+  - Las dos filas "Previsto" quitadas; quedan la exportación, los exámenes y ENVIVO.
+
+### Lo que queda: tres ajustes de coherencia en `docs/ARCHITECTURE.md` (recomendados, no bloquean)
+Son frases del mismo documento que todavía hablan del foro como "previsto" o que no lo muestran.
+- **A-1, el diagrama de §14.**
+  - **Dónde:** el bloque `mermaid`, después de la línea «  dudas ||--o{ comentarios : responde» (ancla única).
+  - **Qué insertar** (tres líneas, con dos espacios de sangría como las demás):
+    ```
+      tareas ||--o{ participaciones_foro : foro_de
+      usuarios ||--o{ participaciones_foro : escribe
+      participaciones_foro |o--o{ participaciones_foro : replica
+    ```
+  - **Por qué:** el párrafo de "Previsto" dice que «El diagrama de arriba no cambia hasta que las tablas existan», y la tabla ya existe.
+- **A-2, "Asíncrono".**
+  - **Reemplazar:** «crear un foro, previsiblemente, con `TAREA_CREADA` y su `RECORDATORIO_24H` (uno por actividad con fecha límite; FORO-01)» (ancla única).
+  - **Por:** «crear un foro encola `TAREA_CREADA` y su `RECORDATORIO_24H` (uno por actividad con fecha límite), y participar y replicar no encolan nada (FORO-01)».
+- **A-3, "Trabajos diferidos".**
+  - **Reemplazar:** «tarea o foro, en la misma fila de `tareas` (previsto, DOCS-04).» (ancla única).
+  - **Por:** «tarea o foro, en la misma fila de `tareas` (FORO-01).»
+
+Los tres describen lo que ya hace el código (`handlers/foros.ts:136-142`: S-09, eventos en la misma transacción). Son coherencia de un documento ya autorizado, así que basta con informar al humano. Si prefiere no tocarlo, el documento sigue sin contradecir a los demás en lo que importa: las tablas y las rutas ya están bien.
+
+### Coherencia entre documentos
+- ESSENTIALS, PRD y ARCHITECTURE dicen lo mismo del foro:
+  - la fila en `tareas` y las `entregas` por alumno;
+  - `participaciones_foro` con `principal_id` y el único parcial;
+  - el alumno no edita ni borra, y el admin borra con la regla de la calificación;
+  - la regla tardía, con su valor por omisión pendiente (DH-02);
+  - la devolución con la calificación;
+  - el admin no califica.
+- `CLAUDE.md` coincide con el código (las claves en `features/tareas/lib.ts` y `features/clases` importando `calificacionesService`).
+- `AGENTS.md` sigue siendo la fuente única de reglas, y `CLAUDE.md` la importa.
+- `docs/DESIGN.md` §7.34 no se contradice con ninguno.

@@ -2047,3 +2047,457 @@ Cada una con copia previa, un ancla contada como única, restauración desde la 
 - Contra `v01-foro01d-r1.txt`: 307 `OK` y 1 `FAILED`, que es `foros-01d-r1.ataque.test.tsx`, por el ajuste arbitrado de `:593` (de `b2a562e8…` a `5c9ad87c…b595`).
 - Lista nueva: `foro01-arranque/v01-foro01d-r2.txt`, con 309 rutas (las 308 de antes más `frontend/src/features/tareas/foros-01d-r2.ataque.test.tsx`, SHA-256 `7430517c…640b`, 12 casos). `sha256sum -c` da 309 de 309 `OK`, y su SHA-256 es `7b6bc3e605d4838d2c9a69c3e9cb9f6b9751f190cfbdbb8d1010d7c607e219d1`.
 - `git status --short -- frontend backend shared` da 31: los 30 de antes más mi archivo nuevo.
+
+## Ronda 0 — FORO-01e (2026-11-17)
+Comprobación de arranque; no es ronda de ataque. Base: `24916a4` (cierre de 01d). Solo frontend y documentos. Plan: 3933 líneas, SHA-256 `f95bba80…`, con la Enmienda 13 (§E13).
+
+**Resultado:**
+- **PARADAS:** ninguna.
+- **Mis `*.ataque`:** ninguna cambia, siempre que 01e cumpla de R-01e-1 a R-01e-14.
+- **C-14 y C-16:** preparados, sin escribir, para la ronda 0 bis.
+- **Detalles del inventario:** dos, ninguno rojo (O-01e-1 y O-01e-2).
+
+### Arranque
+- `git status --short -- frontend backend shared`: vacío.
+- **V-01 de arranque:** `sha256sum -c foro01-arranque/v01-foro01e-base.txt` → 309 de 309 `OK` (lista con SHA-256 `7b6bc3e6…`, la misma de `v01-foro01d-r2.txt`).
+
+### Grep de arranque (sobre `24916a4`, en `frontend/src`)
+- **G1, la línea «Grep» de §E7.5.6, `gradebook\?|mis-calificaciones\?` en las pruebas:**
+  - la URL completa solo la fija `features/calificaciones/lib.test.ts:150`, `:153`, `:159` y `:162` (lista cerrada, punto 1);
+  - `app/router-01d.test.tsx:108-111`, `app/rutas-01d-r1.ataque.test.tsx:108-111` y `secciones-01d-r3.ataque.test.tsx:204-205` usan `startsWith` o `includes`, así que son vigiladas.
+- **G2, la exportación:** `rutaDeExportacion` (`features/calificaciones/lib.ts:192`) es otra función. Sus pruebas (`exportar-02b`, `exportacion-02b-r1` y `-r2`, `recuperar-exportacion-02b`, `estado-por-id-ch6a-r3:977-1007` y `clase-archivada-01d2-vista:1033`) comparan solo el `pathname`. No cambian.
+- **G3, `href` fijos de calificaciones:** `mis-calificaciones-01d.test.tsx:318` (`…/tareas/<id>`) sigue igual por R-01e-13: sin `tipo` en el doble, el enlace es el de la tarea. `secciones-01d-r3:319` y `app/router-01d:241` son de la clase.
+- **G4, las 48 pruebas que leen el código** (`import\.meta\.glob|readFileSync|readdirSync|\?raw|node:fs|from "fs"`): son 48, las mismas de §E12.2 y §E13.2. Las abrí (abajo).
+- **G5, `invalidateQueries` espiado con cuentas exactas en `features/clases`, `app` y `features/admin`:**
+  - la única que mira las claves invalidadas al agregar un alumno es `features/clases/alumnos-view.test.tsx:223-226`, con `toContainEqual`. Suma claves sin romperla;
+  - los demás espías (`gradebook-01d*`, `secciones-01d-r4`, `recargas-ch6`…) cuentan avisos, no invalidaciones.
+- **G6, `isInvalidated).toBe(false)` en `features/clases`, `app` y `features/admin`:** son 13. Ninguna mira el prefijo de tareas, foros ni calificaciones de una clase en la que se agrega o se quita un alumno:
+  - `app/estado-por-id-ch6:721` es `claveAlumnos(B)`, otra clase;
+  - `actividades-foros-01d:402` son las participaciones al mover;
+  - mis `foros-01c2-r3-temas:311-313` son las mutaciones con `500`.
+
+  DH-21 no las cambia.
+- **G7, las pruebas que agregan o quitan alumnos:** 28 archivos (`alumnos-view`, `alumnos-b-r1` a `-r5`, `personas-*`, `app/clase-03c1`, `app/estado-por-id-ch6*`, `usuarios-01f`…). En «Personas» y en el roster no hay ninguna consulta activa bajo `["clases", c, "tareas"]`, `clavePrefijoDeForos` ni `clavePrefijoDeCalificaciones`, así que las tres invalidaciones nuevas solo marcan viejo y no piden nada. Vigiladas.
+- **G8, las pruebas de calificar con un `409` y la clase archivada o la vista desmontada:**
+  - en `clase-archivada-01d2-tareas.test.tsx`, la fila 33 de ADM-1D221 (`:1060-1110`, que exige ninguna lectura más de la entrega) y la fila 36;
+  - en `clase-archivada-01d2-r1.ataque.test.tsx`, ADM-T1D211 y ADM-T1D214 (`:775`, `:859`).
+
+  Con FORO-1E41 (`refetchType: "none"`) siguen sin pedir **mientras ningún observador nuevo se monte sobre la entrega ya marcada vieja** (O-01e-2). Vigiladas.
+- **G9, CAL-T-87** (`calificar-01c-r1.ataque.test.tsx:841-865`): el éxito no cambia en la tarea (R-01e-12). Vigilada.
+- **G10, `useCalificarEntrega` y su aviso:** CAL-T-127 (`aviso-calificar-01c-r3:530-560`) cuenta 5 `avisarDelErrorDeLaEntrega(` y `mensajeDelAvisoDeCalificar` solo en `hooks.ts` y `lib.ts`. `useCalificarParticipacion` no debe llamar a ninguno (§E13.4). Vigilada.
+
+### Las pruebas que leen el código, abiertas una por una contra los archivos de 01e
+Para cada lista cerrada o cuenta, anoto si entra alguno de los archivos de 01e: `participantes-view.tsx`, `participante-view.tsx`, `components/devoluciones.tsx`, el panel, `tabla-de-entregas.tsx`, `mi-participacion.tsx`, `foro-view.tsx` y `features/tareas/{hooks,lib,data,types}.ts`; `features/calificaciones/lib.ts`, `tabla-del-gradebook.tsx` y `lista-de-mis-calificaciones.tsx`; `app/router.tsx`; y `features/clases/hooks.ts` con DH-21 (a).
+- **`styles/clases-r1.ataque` (V-06, `:218` y `:225`, 96):** entran los tres archivos nuevos con su cifra. Es C-14.
+  - Además, `resto.length` exige que todo archivo con `enEspera=` fuera de `fijos` viva en `features/admin/components/` o en `features/clases/components/`, así que **los tres nuevos de `features/tareas` van en `fijos` aunque tengan 0**, como en C-13.
+  - Las otras reglas del archivo (V-02 a V-05, V-07 con el vidrio en igualdad exacta, V-13 y el Toaster) son vigiladas: un vidrio, un `ring-` o un rojo suelto nuevos las ponen en rojo.
+- **`lib/guardas-ch4-r1.ataque`:**
+  - ATQ-CH4-34 (`:113-125`) es C-16;
+  - en el mismo caso, `comoValor` (`:126`) prohíbe pasar `refetch` como valor (`onClick={consulta.refetch}`);
+  - `desestructurado` (`:128-131`) fija una sola línea (`mis-calificaciones-view.tsx: const { refetch } = lista`), así que `participante-view.tsx` no debe desestructurar `refetch`;
+  - ATQ-CH4-30 a ATQ-CH4-33 son vigiladas (R-01e-1).
+- **`lib/guardas-de-doble-clic-estatico`:**
+  - CH4-01 `EXCEPCIONES` no cambia si el panel conserva `calificar.mutateAsync` dentro de `enviar` (R-01e-1);
+  - CH4-03 pide `fetchNextPage({ cancelRefetch: false })` y `refetch({ cancelRefetch: false })` en los botones;
+  - CH4-04 tiene 3 lectores de `isFetchingNextPage` (`mis-calificaciones-view.tsx`, `hilo-privado.tsx` y `entregas-view.tsx`). `participantes-view.tsx` no debe copiar el efecto de Entregas (R-01e-2).
+- **`lib/estado-por-id-estatico-ch6`:**
+  - (a) todo render prop de una línea lleva `key={claseId}`, y la precondición pide al menos 15;
+  - (c) es la lista cerrada, punto 2, con el texto literal de §E13.2.
+- **`features/clases/estatico-02c-r1.ataque`:**
+  - O-07 (`:36`): `.administracion` solo en `firma-del-autor.tsx`, y nadie compara un nombre con «Administración»;
+  - C-13 y A-5 (`:62-100`): `.puedeBorrar` tiene 8 lectores (C-21), y 01e no lee ese campo;
+  - §D-2C1 (`:106`): ningún `startsWith("/maestro…")` ni `pathname.includes(…)`, y `perspectivaDeRuta(` en 10 archivos;
+  - §D-2C3 (`:146`): ninguna ruta `"/maestro/clases/${…}/editar"`, y `path: "clases/nueva"` en una sola línea del router.
+
+  Los enlaces nuevos de `features/calificaciones/lib.ts` deben ser relativos, como `enlaceAEntregaDeAlumno` (`../tareas/…`, `:107-110`), y las vistas de 01e deben tomar la perspectiva de `useRutaDeLaClase`. Vigilada (R-01e-3).
+- **`features/tareas/estatico-01c` y `estatico-01c-r1.ataque`** (CAL-1C12, CAL-1C13, CAL-T-94 a CAL-T-99): se aplican a `types.ts`, `data.ts`, `lib.ts`, `hooks.ts`, el panel y `entrega-de-alumno-view.tsx`.
+  - Entre las palabras prohibidas **en los comentarios** están `estadoPago`, `correo`, `disabled`, `fetch(` y `"Sin tema"`: un comentario nuevo de 01e en `hooks.ts` o en el panel con «estadoPago» lo pone en rojo.
+  - CAL-T-98 cuenta las lecturas de `.version` (R-01e-5).
+  - Vigiladas (R-01e-4 y R-01e-5).
+- **`features/tareas/aviso-calificar-01c-r3`:** CAL-T-127, arriba (G10).
+- **`features/tareas/entregas-01d-r1` a `-r3` y `entregas-01e-r1` y `-r2`:**
+  - sin `?? []`, `disabled`, `fetch(`, `console.`, `vidrio`, `fixed`, `animate-` ni `_blank` fuera de su lugar;
+  - sin importar de `features/clases`;
+  - `renovarTrasErrorDeLaEntrega(` en 3;
+  - **`entregas-01d-r3.ataque:720-735`:** los ganchos exportados de `hooks.ts` cuyo nombre contiene `MiEntrega|Hilo|Comentar|Entregar|Anular` son exactamente cinco. **Ojo: «Comentar» también coincide con «Comentarios»**, así que un gancho nuevo llamado `useComentariosDeLaDevolucion` o `useComentariosDeTuMaestro` lo pone en rojo. Los nombres del plan (`useDevoluciones` y `useMisDevoluciones`) pasan.
+  - Vigiladas.
+- **`features/tareas/tareas-01a-r1`, `tareas-01d-r1`, `-r2` y `-r3`:**
+  - sin `fetch(`, `console.`, `?? []`, `dangerouslySetInnerHTML`, emojis, `disabled`, escalas anuladas ni importaciones de `@/features/…`;
+  - los tipos solo en `types.ts`.
+
+  Se aplican a los archivos nuevos. Vigiladas.
+- **`features/tareas/participar-01d` (FORO-1D04b):** `mi-participacion.tsx` sin `Date.now`, `new Date(`, `getTime(` ni `fechaLimite`, en crudo, comentarios incluidos. Vigilada (R-01e-6).
+- **`features/calificaciones/estatico-01d`, `estatico-01d-r1.ataque` y `estatico-02b`:**
+  - doce archivos exactos (`:58`);
+  - ningún texto suelto ni atributo de texto literal (CAL-T-187);
+  - ninguna `primary` (CAL-T-186);
+  - ni `fixed` ni `-[…]` (CAL-T-188);
+  - `hooks.ts` sin `toast` ni `onError` (CAL-T-189 y CAL2-B15);
+  - CAL-T-191 y CAL-T-192 sobre las pruebas de 01d del módulo;
+  - **las palabras prohibidas en los comentarios** de `lib.ts`, la tabla y la lista (CAL-1D09 `:178`, con `fixed` y `estadoPago`; CAL2-B15 `:120`).
+
+  Vigiladas (R-01e-7 y R-01e-8).
+- **`features/clases/errores-ch3-r1.ataque`** (O-05, `features/clases` y `features/calificaciones`, en crudo): `features/calificaciones/lib.ts` y, con DH-21 (a), `features/clases/hooks.ts`. Vigilada (R-01e-9).
+- **`components/layout/estatico-r1.ataque`:**
+  - V-16: `fixed`;
+  - V-15: `animate-`;
+  - los 7 valores arbitrarios;
+  - V-17: «Ocultar»;
+  - ningún `href` con `#`.
+
+  Vigilada (R-01e-10).
+- **`components/ui/desplazamiento-posicionado-h6`:** `overflow-x-auto` con `relative`. Vigilada.
+- **`lib/errores-de-api-estatico`, `lib/estatico-ch3-r1` y `-r2`, `lib/errores-ch3-r1`, `services/apiClient-ch3` y `-ch3-r1`:** son vigiladas (§E9.4).
+- **`features/clases/refactor-01c-r1`, `reloj-01e-r4` (lee **todas** las pruebas: un texto «Vence hoy, mañana o en N días» en una prueba nueva exige reloj fijo), `estatico-03c1-r1`, `ver-mas-01e-r3` y `foros-01c1-r1-foco`:** vigiladas.
+- **`styles/tokens-r1.ataque`** lee `docs/DESIGN.md` (`?raw`), y 01e toca `DESIGN.md` (§7.34). Corta sus secciones por la primera aparición de `### Tokens`, `### Materiales`, `### Escala`, `## 5.`, `### Radios` y `### Bordes` (líneas 41 a 268); §7.34 va después de la línea 939, y no deben aparecer `−` en la tabla de la escala. **Vigilada:** la tabla de §E13.2 la pone en «No le afecta» (O-01e-1).
+- **Las demás** (`features/admin` (2), `styles/tokens`, `badge-03b-r1`, `app/fondo-r1`, `clases-r4`, `xlsx-muestra`, `como-se-entrega-01a`, `features/tareas/errores-ch3-r1` y `lib/errores-ch3-r2`) quedan fuera del alcance de 01e.
+
+**Resultado:** ninguna lista cerrada nueva sin inventariar. Lo que cambia es lo que el plan ya trae: C-14, C-16 y la lista cerrada (2). **Sin PARADA.**
+
+### Mis `*.ataque` y las que tocan lo que cambia 01e: ninguna cambia
+**Las 9 del foro:** `foros-01c1-r1`, `foros-01c1-r1-foco`, `foros-01c2-r1`, `-r2`, `-r3`, `foros-01c2-r2-temas`, `-r3-temas`, `foros-01d-r1` y `-r2`.
+- **Conteos globales:** el grep de `AllByRole("link"|"button"|"alert"|"region")`, `getAllByText(` y `toHaveLength(` fuera de los contadores por ruta da solo:
+  - `foros-01c1-r1:476` y `foros-01c1-r1-foco:365`, de la lista «Foro», que 01e no toca;
+  - `foros-01c2-r1:740` y `:743`, de la edición;
+  - `foros-01d-r2:704`, dentro del bloque.
+
+  Todos los contadores de lecturas filtran por la ruta exacta, por método o por `lecturasNoCanonicas()` (este cuenta solo las mayúsculas).
+- **Las invalidaciones que crecen:** `useBorrarParticipacion` + `clavePrefijoDeParticipantes`, sin observador en mis pruebas, no pide nada. Calificar no ocurre en ninguna.
+- **«Tu participación»:**
+  - mis dobles traen `calificacion: null`, así que no se piden «Comentarios de tu maestro» (R-01e-11);
+  - ATQ-FORO-142 (`foros-01d-r2`, `PARTICIPACION_CALIFICADA`) pone `estado: "calificado"` con `calificacion: null` y espera el foco en el `h3` «Participaciones», que es otro nombre que «Participantes».
+- **El panel «Participantes» de `ForoView`:** el plan lo describe como un enlace «Ver participantes» (`plan.md:2736`), sin lectura. Así, ATQ-FORO-129, ATQ-FORO-130 y ATQ-FORO-133 de `foros-01c2-r3` no ven peticiones ni `alert` nuevos. Si el panel pidiera algo, los contadores por ruta exacta seguirían, pero un bloque nuevo en error con `403` sumaría un `MensajeError` (con su texto genérico, no el de la vista). Lo dejo como restricción para vigilar (R-01e-14 lo cubre si es un bloque).
+- **La única acción principal, la clase archivada y el foco:** ninguna de mis pruebas del foro afirma la acción principal del detalle. Las de clase archivada buscan «Borrar foro», «Editar foro» y «Borrar», no «Ver participantes». El foco se afirma en la lista, la edición y los bloques de 01d.
+
+**Las de CALIFICACIONES, ENTREGAS y ADMIN que tocan el panel, la entrega de un alumno, el gradebook, «Mis calificaciones» o agregar y quitar alumnos:**
+- `calificar-01c-r1`: CAL-T-87, el éxito sin cambio;
+- `aviso-calificar-01c-r3`: CAL-T-127;
+- `estatico-01c-r1`;
+- `entregas-01d-r1` a `-r3` y `entregas-01e-r1` y `-r2`;
+- `gradebook-01d-r1` a `-r3`, `secciones-01d-r3` y `-r4`;
+- `exportacion-02b-r*`;
+- `clase-archivada-01d2-r1` (ADM-T1D211 y ADM-T1D214);
+- `alumnos-b-r1` a `-r5`;
+- `personas-03c1-r1` y `-r2`;
+- `app/estado-por-id-ch6a-r*`.
+
+Por los grep de arriba (G1 a G10), ninguna fija lo que 01e cambia a propósito:
+- `conTipo` solo cambia la URL que fija `lib.test.ts` (lista cerrada);
+- un doble sin `tipo` enlaza como hoy (R-01e-13);
+- las invalidaciones nuevas de DH-21 no alcanzan consultas activas en «Personas»;
+- FORO-1E41 solo marca viejo con `refetchType: "none"`;
+- el panel de una tarea hace las mismas peticiones (R-01e-12).
+
+**Conclusión: ninguna cambia.** Depende de R-01e-1 a R-01e-14 y de las dos notas de abajo.
+
+### Observaciones (detalles del inventario; ninguna es rojo hoy)
+- **O-01e-1:** `styles/tokens-r1.ataque.test.ts` lee `docs/DESIGN.md`. La tabla de §E13.2 la clasifica «No le afecta», pero 01e toca ese archivo: es vigilada. No cambia si §7.34 va después de la §7.33 (línea 939) y no repite los encabezados `### Tokens`, `### Materiales`, `### Escala`, `### Radios`, `### Bordes` ni `## 5.`.
+- **O-01e-2, riesgo para la fila 33 de ADM-1D221 y ADM-T1D211 y T1D214:** FORO-1E41 marca la entrega vieja con `refetchType: "none"` tras un `409`. Si después se monta un observador **nuevo** sobre esa entrega, se pide sola, por `refetchOnMount` sobre una consulta inválida. Pasaría, por ejemplo, si la vista de solo lectura monta otro componente con `useEntregaDeAlumno` al archivarse la clase. Eso rompería «no pide la recarga» (`clase-archivada-01d2-tareas.test.tsx:1072`, `:1091` y `:1109`). Hoy no pasa porque el código no existe. Lo anoto para que el programador no monte un observador nuevo de la entrega (o de la participante) al pasar a solo lectura; si lo hace, es PARADA.
+- **O-01e-3, nombres de los ganchos nuevos:** ninguno debe contener `Comentar` (lo atrapa `Comentarios`), `MiEntrega`, `Hilo`, `Entregar` ni `Anular` (`entregas-01d-r3.ataque:720-735`).
+
+### C-14 (V-06, `styles/clases-r1.ataque.test.ts`) — preparado, sin escribir
+1. **Comentario,** después del de C-13 (`:211-217`) y antes del `it(` de `:218`, literal de §E13.2 con las cifras que se declaren: `// FORO-01e ronda 0 bis (C-14, §E7.5.6 y §E13.2): de 96 a {96 + n} enEspera=. Entran {archivo} ({k}: «…») …; {los que tienen 0} (0). Sigue protegiendo lo mismo: ningún \`disabled\` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los botones con espera cambien solo con el plan.`
+2. **El título** de `:218` («… 96 enEspera») y **`:225`** (`expect(usos).toHaveLength(96)`) pasan a 96 + n.
+3. **`fijos`:** un bloque después de `:399` (`"/src/features/tareas/components/mi-participacion.tsx": 0,`), con su comentario `// FORO-01e ronda 0 bis (C-14, §E13.2): …`, y una entrada por archivo con su cifra, incluidos los de 0: `participantes-view.tsx`, `participante-view.tsx` y `components/devoluciones.tsx`. Si lo que escribió un alumno va en un componente aparte, también.
+4. **Las cifras:** las copio de lo que reporte el caso al fallar y de mi propio `grep -c 'enEspera='` por archivo. Si no coinciden con lo declarado, PARADA.
+
+### C-16 (ATQ-CH4-34, `lib/guardas-ch4-r1.ataque.test.ts:113-125`) — preparado, sin escribir
+1. **Comentario,** literal de §E13.2, encima de las líneas nuevas: `// FORO-01e ronda 0 bis (C-16, §E8.2 y §E13.2): la participación de un alumno tiene la forma de la entrega de un alumno (la recarga tras un 409 de calificar, dentro de un manejador que ya guarda su ref).`
+2. **Las líneas:** las de `participante-view.tsx` que el caso reporte al fallar (`+ "/src/features/tareas/participante-view.tsx: …"`), en la forma de las dos de `entrega-de-alumno-view.tsx` (`consulta.refetch(),` y la del foro que se recarga solo con `RUBRICA_MODIFICADA` o `ENTREGA_NO_CALIFICABLE`). La lista se ordena con `.sort()`, así que el lugar no importa; van después de las de `entrega-de-alumno-view.tsx`.
+3. **Si la vista no tiene ninguna, C-16 no se aplica.**
+4. Nada más cambia en el archivo. `comoValor` y `desestructurado` siguen igual (arriba).
+
+### Notas para el ataque de 01e (solo anotadas)
+- **Los ciclos de R-01e-14:** un servidor inconsistente en «Sus participaciones», «Comentarios de la devolución» y «Comentarios de tu maestro», contando la principal (el foro o la participante) por su ruta exacta antes y después de reposar. Sin `exact`, la mutación debe ponerlo en rojo.
+- **Las claves con ids canónicos:** `:foroId` y `:alumnoId` en mayúsculas o mezclados en «Participantes» y en la participación, con `lecturasNoCanonicas()`. La `key` canónica, y que calificar escriba en la clave que se lee (FORO-1E46). `alumnoId` igual a `lista`, `alumno`, `participaciones` o `devoluciones` (FORO-1E45).
+- **Calificar con la vista desmontada y con la clase archivada** (FORO-1E41, tarea y foro): ninguna lectura, la consulta vieja y la recarga al volver. Además, O-01e-2.
+- **El foco cuando un control desaparece** (§E13.6): «Ver participación» que sale en una recarga, el cursor en los tres «Ver más», el `409` con reinicio, la clase en solo lectura y que no robe el foco.
+- **Los `VALIDACION` fuera de contrato en el panel con un foro** (FORO-1E40, FORO-1E05 con `calificacion` y `puntajes`).
+- **Nada de estado de pago en «Participantes»:** la tabla, las filas y la participación de un alumno sin `estadoPago` ni `accesoRestringido`, y el grep de los archivos nuevos.
+- **DH-21:** agregar y quitar con «Participantes», las entregas y el gradebook en caché sin observador: quedan viejos sin pedirlos y se piden al volver.
+
+### Corridas
+Ninguna: en esta ronda 0 no cambié ningún archivo de `frontend/`, y la comprobación fue por grep y por lectura.
+
+### V-01 final
+`sha256sum -c v01-foro01e-base.txt` → 309 de 309 `OK`. Ninguna `*.ataque` cambió, y `git status --short -- frontend backend shared` sigue vacío.
+
+### Paradas
+Ninguna.
+
+## Ronda 0 bis — FORO-01e (2026-11-17)
+**Resultado:** C-14 y C-16 aplicados con la forma y el comentario literal de §E13.2. Los dos casos quedan en verde y no hubo PARADA.
+
+### Arranque
+V-01 de arranque: `sha256sum -c v01-foro01e-base.txt` → 309 de 309 `OK`.
+
+### La forma comprobada, antes de aplicar C-16
+- **`features/tareas/participante-view.tsx:236-260`:** `recargarTrasConflicto(error)` tiene la forma de `entrega-de-alumno-view.tsx:117-135`.
+  - Sale si la vista ya no está montada o la clase dejó de estar vigente.
+  - Espera, en un `Promise.all`, `consulta.refetch()` (`:241`) y `recargaLaTareaTrasConflicto(error) ? foro.refetch() : Promise.resolve(null)` (`:242`).
+  - Si el foro falla, sale. Si la participante falla, avisa con el texto de DH-19, salvo ante un error que reemplaza la vista o que redirige. Con éxito, reinicia el panel.
+  - Ninguna lectura con `cancelRefetch`.
+- **`refetch` en la vista:** `.refetch` sin llamar (como valor) da 0 coincidencias, y desestructurar `{ refetch }` también da 0. La vista pasa `recargarTrasConflicto` al panel como `onConflicto` (`:275`).
+- **La guarda de doble clic** vive en el panel (`panel-de-calificacion.tsx:132`, `if (enviandoRef.current) return`), que llama a `calificar.mutateAsync` (`:111`) y a `onConflicto` (`:117`), como manda el plan (R-01e-1).
+
+**La forma es la del plan. Sin PARADA.**
+
+### C-14 — `styles/clases-r1.ataque.test.ts`
+- **Respaldo:** `scratchpad/tester-r1/copias01e/clases-r1.antes-c14.ts` (`87d27e6e…`).
+- **Antes:** el caso V-06 cae con `expected [ …(99) ] to have a length of 96 but got 99`.
+- **Cifras propias** con `grep -c 'enEspera='`: `participantes-view.tsx` 1, `participante-view.tsx` 1, `components/devoluciones.tsx` 1 y `panel-de-calificacion.tsx` 1, sin cambio. El total en producción es 99. **Coinciden con las declaradas.**
+- **Después:**
+  - el comentario de C-14 va después del de C-13 (`:218-222`), con la forma literal de §E13.2 y las cifras;
+  - el título pasa de «… 96 enEspera» a «… 99 enEspera»;
+  - `expect(usos).toHaveLength(99)` (`:230`);
+  - en `fijos`, después de `mi-participacion.tsx` (`:405-409`), el comentario y las tres entradas nuevas con 1.
+- **Nada más cambia:** `diff` contra el respaldo da solo `218c218,223`, `225c230` y `399a405,409`, y Prettier no marca nada.
+
+### C-16 — `lib/guardas-ch4-r1.ataque.test.ts` (ATQ-CH4-34)
+- **Respaldo:** `scratchpad/tester-r1/copias01e/guardas-ch4-r1.antes-c16.ts` (`c793d8dc…`).
+- **Antes:** el caso cae con `expected [ …(8) ] to deeply equal [ …(6) ]`, y reporta dos líneas de más. De ahí las copié:
+  - `+ "/src/features/tareas/participante-view.tsx: consulta.refetch(),"`;
+  - `+ "/src/features/tareas/participante-view.tsx: recargaLaTareaTrasConflicto(error) ? foro.refetch() : Promise.resolve(null),"`.
+- **Después:** el comentario literal de §E13.2 y las dos líneas, después de las de `entrega-de-alumno-view.tsx`. La lista se ordena con `.sort()`.
+- **Nada más cambia:** `diff` da solo `121a122,124`, `comoValor` y `desestructurado` siguen igual, y Prettier no marca nada.
+
+### Corridas (desde `frontend/`, una a la vez)
+- `npx vitest run src/styles/clases-r1.ataque.test.ts` → `Tests  11 passed (11)`.
+- `npx vitest run src/lib/guardas-ch4-r1.ataque.test.ts` → `Tests  6 passed (6)`.
+- `npx vitest run src/features/tareas/entregas-01d-r3.ataque.test.tsx` → `Tests  17 passed (17)`. Los ganchos nuevos no caen en la lista de O-01e-3.
+- `npx vitest run src/styles/tokens-r1.ataque.test.ts` → `Tests  19 passed (19)`. El `DESIGN.md` con la §7.34 nueva no la rompe (O-01e-1).
+- `npm run lint` → salida 0, termina en `> tsc -b`.
+
+### V-01 final
+- Contra `v01-foro01e-base.txt`: 307 `OK` y 2 `FAILED`, que son los dos archivos de esta ronda.
+- Lista nueva: `foro01-arranque/v01-foro01e-r0bis.txt`, con 309 rutas y 309 de 309 `OK`. Su SHA-256 es `16132f2959f707505ffdb8e9c45374723251789ac7b39ac4ead2fb0374e52d14`.
+  - `styles/clases-r1.ataque.test.ts`: de `87d27e6e…` a `68ee77cc…cd1c`.
+  - `lib/guardas-ch4-r1.ataque.test.ts`: de `c793d8dc…` a `19df2656…fe2e`.
+
+### Paradas
+Ninguna.
+
+## Ronda 1 — FORO-01e (2026-11-17)
+# Reporte del Tester — FORO-01e («Participantes», la participación de un alumno y calificar un foro) — Ronda 1
+Veredicto: **ROTO**. Hay un hallazgo de severidad media (T-01) y ninguno crítico, alto ni bajo.
+
+Verificación propia (desde `frontend/`, una corrida a la vez, sin otra copia de trabajo corriendo):
+- `npm run lint`: salida 0, termina en `> tsc -b`.
+- `npx vitest run src/features/tareas`: `Tests  1 failed | 1865 passed (1866)` (`Test Files  1 failed | 68 passed (69)`). El rojo es T-01.
+- `npx vitest run src/features/calificaciones`: `Tests  481 passed (481)`.
+- `npx vitest run src/features/clases`: `Tests  3167 passed (3167)` (`Test Files  131 passed (131)`).
+- `npx vitest run src/app src/lib src/services src/styles src/components`: `Tests  1540 passed (1540)` (`Test Files  99 passed (99)`).
+
+**Archivo nuevo:** `frontend/src/features/tareas/foros-01e-r1.ataque.test.tsx`, con 9 casos (`npx vitest list`), de ATQ-FORO-148 a ATQ-FORO-152, incluido un control en la tarea.
+- Su arnés copia el doble del servidor de `recuperar-participantes-01e.test.tsx` (sin tocar ese archivo).
+- Fija el reloj (solo `Date`), con el router real y el `QueryClient` de `app/providers.tsx`.
+- No usa selectores de clases de estilo y cada caso afirma algo.
+
+V-01 de arranque: `sha256sum -c v01-foro01e-r0bis.txt` → 309 de 309 `OK`.
+
+## Hallazgos
+
+### T-01 — La recarga tras un `409` de calificar que falla en el foro y en la participante da dos avisos de recarga, no uno
+**Severidad:** media. Es un caso borde mal resuelto: avisos duplicados ante la misma falla, contra la regla «se avisa una vez» y contra la conducta de la tarea.
+
+**Prueba,** en `frontend/src/features/tareas/foros-01e-r1.ataque.test.tsx`: «ATQ-FORO-148: un 409 RUBRICA_MODIFICADA cuya recarga falla en el foro y en la participante da el aviso del 409 y uno solo de la recarga».
+
+**Controles en verde:**
+- con solo la participante fallando, son dos avisos: el del `409` y uno de la recarga;
+- en la tarea, la entrega de un alumno con el mismo `409` y la tarea y la entrega fallando da exactamente dos: el del `409` y el de la tarea («ATQ-FORO-148 (control en la tarea)»).
+
+**Pasos:**
+1. El maestro abre la participación de un alumno, escribe 8 y pulsa «Calificar y devolver».
+2. El `PUT` responde `409 RUBRICA_MODIFICADA`, que según `recargaLaTareaTrasConflicto` recarga también el foro.
+3. Las dos lecturas de la recarga (`GET` del foro y de la participante) responden `503`, con su reintento.
+
+**Esperado:** como en la entrega de un alumno (`entrega-de-alumno-view.tsx:108-116`: «si una falla … se avisa una vez: el fallo de la tarea lo avisa ya su propio aviso de recarga fallida»), el aviso del `409` y **uno solo** de la recarga.
+
+**Obtenido:** tres avisos:
+- «La rúbrica cambió. Vuelve a calificar.»;
+- «No pudimos actualizar el foro. Mostramos la última versión que tenemos.»;
+- «No pudimos actualizar la participación de este alumno. Mostramos la última versión que tenemos.».
+
+**Por qué:** en `participante-view.tsx:236-260`, `recargarTrasConflicto` sale por `if (foroNuevo !== null && foroNuevo.isError) return` (`:245`) **antes** de `marcarComoAvisado(claveParticipante(…))` (`:247`). Al terminar, `setRecargando(false)` deja libres los dos avisos de recarga fallida (`:218-234`, que esperan `!recargando`), y se disparan los dos: el del foro y el de la participante, que nadie marcó como avisado.
+- En la tarea, el aviso de la entrega no sale en ese camino, así que queda uno.
+- La mutación Z3 (quitar `marcarComoAvisado`) tumba también el control de la participante, así que la memoria funciona; lo que falta es marcarla en la salida del foro.
+
+**Requisito o regla violada:** la matriz de §E13.7, fila «Calificar: la recarga tras el `409` que falla» (un aviso, DH-19), y la forma de §E8.2 y §E13.2: «la participación de un alumno tiene la forma de la entrega de un alumno».
+
+**Hermanos probables:**
+- `ENTREGA_NO_CALIFICABLE`, que también recarga el foro (`recargaLaTareaTrasConflicto`), por el mismo camino;
+- un error del foro que reemplaza la vista mientras la participante falla con `5xx`: la vista se reemplaza y el aviso de la participante queda excluido por `participanteReemplazaLaVista`, solo si la participante también reemplaza. No lo verifiqué.
+
+## Atacado sin hallazgos (por punto)
+
+**1. R-01e-14 en los estados sin caso propio** (ATQ-FORO-149, dos casos):
+- **Los dos bloques a la vez:** «Sus participaciones» y «Comentarios de la devolución», con datos, reciben a la vez `404 ALUMNO_NO_ENCONTRADO` (error que reemplaza la vista) mientras la participante responde bien, en un servidor inconsistente.
+  - La participante se pide una o dos veces más (una lectura lógica, más su reintento como mucho) y no sube entre los 4 y los 7 segundos: no hay ciclo.
+  - No hay avisos y la vista sigue.
+  - La mutación Z1 (sin `exact` en `pedirDeNuevoSoloLaParticipante`) lo tumba.
+- **«Sus participaciones» con datos:** recibe el mismo error y la participante lo confirma. La vista se reemplaza con «No encontramos a ese alumno en esta clase.», un solo `alert` y ningún aviso.
+
+FORO-1E48 del programador cubre la primera carga, el `404 NO_ENCONTRADO` y «Comentarios de tu maestro».
+
+**2. La recarga tras el `409`:** T-01. Con solo la participante fallando, es correcta (control de ATQ-FORO-148).
+
+**3. La memoria de avisos** (ATQ-FORO-150): una recarga fallida de la participante del alumno 1 avisa una vez; el alumno 2 no la hereda; y volver al 1 con el fallo en caché (la relectura en vuelo) no la repite.
+- **O-01e-4:** si la relectura al volver falla otra vez, sale un aviso nuevo. Es correcto: es un fallo nuevo.
+- `StrictMode` no lo ataqué con caso propio.
+
+**4. Volver a abrir tras un `409` con la vista desmontada y con la clase archivada:** FORO-1E41 del programador, en la tarea y en el foro, sigue verde.
+- **O-01e-2, por lectura:** en una clase archivada, `participante-view.tsx` pinta la calificación con el `entrega` que ya tiene (`calificacion()`, `:264-301`), sin montar otro observador de la participante.
+- Las filas 33 y 36 de ADM-1D221 y ADM-T1D211 y T1D214 siguen verdes en la suite de `features/tareas`.
+
+**5. DH-21:** las tres invalidaciones van con el `claseId` de la clase en la que se agrega o se quita (`invalidarPersonasDeLaClase(queryClient, claseId)`), así que otra clase con el mismo alumno no se toca por construcción. FORO-1E44 del programador cubre los dos sentidos dentro de la clase. No escribí caso propio.
+
+**6. Los enlaces al foro:**
+- `lista-de-mis-calificaciones.tsx:45` enlaza a `enlaceAForo` (`../foros/<id>`) solo con `tipo === "foro"`, y si no, a la tarea (R-01e-13). El alumno nunca recibe un enlace a `participantes`: `enlaceAParticipante` solo lo usa la tabla del gradebook.
+- Los enlaces son relativos, así que valen en las tres perspectivas y en una clase anterior.
+- Lo cubre `features/calificaciones/foro-01e.test.tsx`, en verde.
+
+**7. El foco** (ATQ-FORO-152, dos casos):
+- con el foco en «Calificar y devolver», archivar la clase quita el panel y el foco no cae en `<body>`;
+- con el foco en «Ver más participaciones», una recarga que deja la lista en una página quita el botón y el foco no cae en `<body>`.
+
+**8. Calificar un foro:**
+- en mayúsculas, calificar escribe en la clave que lee la vista, sin otra lectura de la participante (ATQ-FORO-151);
+- el doble clic, los `409` de la matriz, los `VALIDACION` fuera de contrato (FORO-1E40 y FORO-1E05), quien no participó y lo que invalida calificar los cubren las pruebas del programador (FORO-1E05 a 1E09, 1E26, 1E40, 1E41 y 1E43), todas en verde. No los dupliqué.
+
+**9. Ids y claves** (ATQ-FORO-151):
+- con `:foroId` y `:alumnoId` en mayúsculas, ninguna petición sale sin canonizar y hay una sola clave de la participante (`<foro>:<alumno>` canónico);
+- la mutación Z2 (sin `idCanonicoDeLaRuta` en el `foroId`) lo tumba;
+- `alumnoId` igual a un segmento fijo lo cubre FORO-1E45.
+
+**10. Datos y autorización:**
+- `estadoPago` y `accesoRestringido` no aparecen en `participantes-view.tsx`, `participante-view.tsx`, `components/devoluciones.tsx`, `mi-participacion.tsx` ni `lista-de-mis-calificaciones.tsx` (grep con 0);
+- en la rama del alumno, `participantes/:alumnoId` cae en `*` (aceptado por el manager);
+- «Comentarios de tu maestro» solo con calificación lo cubren FORO-1E48 y `mi-calificacion-foro-01e`.
+
+**11. Pruebas que leen el código y regresión:**
+- ningún `.tsx` de producción escribe «Ocultar»;
+- los ganchos con `MiEntrega|Hilo|Comentar|Entregar|Anular` siguen siendo los cinco de siempre;
+- `mi-participacion.tsx` sin `new Date(`, `Date.now`, `getTime(` ni `fechaLimite`;
+- la suite de `features/tareas` está en verde salvo T-01: incluye mis `foros-01c2-r1` a `-r3` y `foros-01d-r1` y `-r2`, las de CALIFICACIONES y ENTREGAS de `features/tareas` y las estáticas;
+- en verde también `features/calificaciones` (481), `features/clases` y `src/app src/lib src/services src/styles src/components` (abajo).
+
+## Mutaciones (3, en «Se toca» de 01e)
+Cada una con copia previa, un ancla contada como única, restauración desde la copia y comparación byte a byte (`cmp igual: True` en las tres). Al final, `sha256sum -c` de `hooks.ts` y `participante-view.tsx` da `OK`. Script: `scratchpad/tester-r1/mut-01e.py`.
+
+| Mutación | Archivo y cambio | Cae |
+|---|---|---|
+| Z1 | `hooks.ts`: `pedirDeNuevoSoloLaParticipante` sin `exact: true` | ATQ-FORO-149 (los dos bloques; aparece el ciclo) |
+| Z2 | `participante-view.tsx`: el `foroId` sin `idCanonicoDeLaRuta` | ATQ-FORO-151 |
+| Z3 | `participante-view.tsx`: sin `marcarComoAvisado(…)` tras la recarga fallida | ATQ-FORO-148 ×2 (también el control) |
+
+## Observaciones
+- **O-01e-4:** con la relectura al volver fallando otra vez, el aviso nuevo es correcto. Corregí ATQ-FORO-150 en su primera corrida (defecto mío: el doble seguía fallando al volver, y eso es un fallo nuevo). Ahora la relectura queda en vuelo.
+- **O-01e-5, defectos de mi prueba en su primera corrida:** ESLint marcó siete ayudantes copiados del arnés que no usaba (`API_CALIFICAR`, `API_MIS_DEVOLUCIONES`, `API_MIA`, `enVuelo`, `delForo`, `filaDe` y `encabezadoDe`), y los quité.
+
+## No atacado y por qué
+- **DH-21 con un caso propio, los enlaces del gradebook en sus tres perspectivas, el doble clic y los `VALIDACION` del panel:** los cubren FORO-1E44, `foro-01e.test.tsx`, FORO-1E05 a 1E09 y FORO-1E40 del programador, en verde. Prioricé lo que no tenía caso.
+- **`StrictMode`:** sin caso.
+- **El backend:** 01e no lo toca.
+- **La suite completa:** la corre el manager.
+- **El navegador:** no se abre.
+
+### V-01 final
+- `v01-foro01e-r0bis.txt` sigue con 309 de 309 `OK`: ninguna `*.ataque` previa cambió.
+- Lista nueva: `foro01-arranque/v01-foro01e-r1.txt`, con 310 rutas (las 309 de antes más `frontend/src/features/tareas/foros-01e-r1.ataque.test.tsx`, SHA-256 `436d54f9…`, 9 casos). `sha256sum -c` da 310 de 310 `OK`, y su SHA-256 es `b1b9567197effb87b1243d3c4ee69eff23dfd6444a30d6e29d3798ccefa906fe`.
+- `git status --short -- frontend` da 27: los 26 de antes más mi archivo nuevo.
+
+## Ronda 2 — FORO-01e (2026-11-17)
+# Reporte del Tester — FORO-01e (el remedio de T-01) — Ronda 2
+Veredicto: **RESISTE**. No encontré ningún hallazgo: el remedio de T-01 aguanta en todos los caminos vecinos que ataqué, DH-21 no toca otra clase, y lo de la ronda 1 sigue en verde.
+
+Verificación propia (desde `frontend/`, una corrida a la vez, sin otra copia de trabajo corriendo):
+- `npm run lint`: salida 0, termina en `> tsc -b`.
+- `npx vitest run src/features/tareas`: `Tests  1884 passed (1884)` (`Test Files  70 passed (70)`).
+- `npx vitest run src/features/calificaciones`: `Tests  481 passed (481)`.
+- `npx vitest run src/features/clases`: `Tests  3168 passed (3168)` (`Test Files  132 passed (132)`).
+- `npx vitest run src/app src/lib src/services src/styles src/components`: `Tests  1540 passed (1540)` (`Test Files  99 passed (99)`).
+
+**Archivos nuevos:**
+- `frontend/src/features/tareas/foros-01e-r2.ataque.test.tsx`: 7 casos, ATQ-FORO-153 a ATQ-FORO-156. Usa el arnés copiado de `recuperar-participantes-01e.test.tsx`, con el reloj fijo (solo `Date`).
+- `frontend/src/features/clases/foros-01e-r2-alumnos.ataque.test.tsx`: 1 caso, ATQ-FORO-157. Llama al gancho de producción `useQuitarAlumno`.
+
+No usan selectores de clases de estilo, y cada caso afirma algo. Mi archivo de la ronda 1 no se tocó.
+
+V-01 de arranque: `sha256sum -c v01-foro01e-r1.txt` → 310 de 310 `OK`.
+
+## Hallazgos
+Ninguno.
+
+## Atacado sin hallazgos (por punto)
+**1. La recarga tras un `409` con la clase archivándose en vuelo** (ATQ-FORO-153):
+- El `409 RUBRICA_MODIFICADA` lanza la recarga, y las dos lecturas quedan en vuelo.
+- La clase se archiva y el panel desaparece. Las dos lecturas fallan con `503`, y su reintento también.
+- **Ningún aviso de recarga:** solo el del `409`.
+- Un fallo de fondo nuevo de la participante, después, avisa una sola vez, y el foro no repite el suyo.
+
+**2. Dos `409` seguidos:** la guarda del panel (`enviandoRef`) se sostiene hasta que termina la recarga, así que no puede salir un segundo envío con la primera en vuelo (lectura de `panel-de-calificacion.tsx:111-132`). El segundo `409`, tras una recarga fallida, lo cubre el punto 3.
+
+**3. Una de las dos lecturas falla** (ATQ-FORO-154, dos casos):
+- **Participante bien y foro con `503`:**
+  - avisos: el del `409` y uno solo de la recarga (el del foro);
+  - lo escrito se conserva y el panel sigue usable;
+  - volver a calificar da otro `409`, con el foro ya bien;
+  - el panel se reinicia con el foco en el `h3` «Calificación», y el tercer guardado pasa.
+- **Foro bien y participante con `503`:** los avisos son exactamente `[409, «No pudimos cargar la participación actual. Revisa tu conexión e inténtalo de nuevo.»]`, sin el de recarga fallida.
+
+**4. El foro reemplaza la vista en la recarga** (ATQ-FORO-155), con el foco en «Calificar y devolver»:
+- el foro responde `404` y la vista dice «Ese foro ya no existe.»;
+- hay un solo `alert` y ningún aviso más que el del `409`;
+- el foco no cae en `<body>`.
+
+**5. Los hermanos del remedio** (ATQ-FORO-156, tres casos):
+- `ENTREGA_NO_CALIFICABLE` con las dos lecturas en `503`: el aviso del `409` y uno solo de la recarga;
+- la lectura del foro de la recarga responde `403 ACCESO_RESTRINGIDO` (la participante, `503`): se redirige (`irA`) y no hay más aviso que el del `409`;
+- **la memoria es por alumno:**
+  - la recarga fallida del alumno 1 (foro en `503`) avisa una vez;
+  - al pasar al alumno 2, ya cargado bien, su recarga de fondo fallida avisa una vez: la marca del alumno 1 no la calla;
+  - el foro, ya recuperado, no repite.
+- Los `409` que no recargan el foro (`ENTREGA_MODIFICADA`) y la vista desmontada los cubren FORO-1E55 y FORO-1E41.
+- **La lista de hermanos del programador es cierta** en los caminos que probé. No encontré uno que falte.
+
+**6. Lo que seguía sin caso propio:**
+- **DH-21 con otra clase** (ATQ-FORO-157): quitar al alumno de la clase A deja con `isInvalidated === true` la lista de «Foro», «Participantes», la participante, las entregas de una tarea y el gradebook **de A**. Lo mismo **de B**, que tiene al mismo alumno, queda en `false`. Sale un solo `DELETE` y ninguna lectura.
+- **R-01e-14** (los dos bloques a la vez, la recarga que reemplaza la vista): lo cubre ATQ-FORO-149 de mi ronda 1, en verde.
+- **Los enlaces del gradebook con mayúsculas:** los enlaces se arman con los ids de los datos, que el servidor devuelve en minúsculas, y son relativos (`../foros/…`). Lo verifiqué por lectura, sin caso.
+
+**7. Regresión:**
+- en `features/tareas`, la suite completa en verde, con mi ronda 1 de 01e (los 9 casos), mis `*.ataque` del foro de 01c2 y 01d, las de CALIFICACIONES y ENTREGAS de `features/tareas` y el control de la tarea (ATQ-FORO-148, la entrega de un alumno sin cambio);
+- en verde también `features/calificaciones`, `features/clases` y `src/app src/lib src/services src/styles src/components`.
+
+## Mutaciones (3, en «Se toca» de 01e)
+Cada una con copia previa, un ancla contada como única, restauración desde la copia y comparación byte a byte (`cmp igual: True` en las tres). `features/clases/hooks.ts` se mutó solo sobre las invalidaciones nuevas. Al final, `sha256sum -c` de los dos archivos da `OK`. Script: `scratchpad/tester-r1/mut-01e-r2.py`.
+
+| Mutación | Archivo y cambio | Cae |
+|---|---|---|
+| W1 | `participante-view.tsx`: sin marcar avisada la participante cuando falló el foro o la recarga ya no es vigente | ATQ-FORO-153 y ATQ-FORO-156 ×3 |
+| W2 | `participante-view.tsx`: sin marcar avisado el foro con la recarga ya no vigente | ATQ-FORO-153 |
+| W3 | `features/clases/hooks.ts`: `invalidarPersonasDeLaClase` sin la invalidación de `clavePrefijoDeForos` | ATQ-FORO-157 |
+
+W1 se corrió otra vez después de corregir mi caso de la memoria por alumno (O-01e-6), con el mismo resultado.
+
+## Observaciones
+- **O-01e-6, defectos de mis pruebas en su primera corrida, ya corregidos:**
+  - `afterEach` sin cerrar al copiar el arnés: el archivo de origen había crecido;
+  - ATQ-FORO-154 hacía fallar el foro desde la primera carga;
+  - el caso de la memoria por alumno no ejercitaba lo que su título decía, porque el alumno 2 nunca había cargado. Ahora carga bien y después falla;
+  - en ese mismo caso, el foro seguía fallando al cambiar de alumno, y su aviso nuevo era correcto;
+  - quité 13 ayudantes del arnés sin uso, que marcó ESLint.
+
+## No atacado y por qué
+- **Dos `409` con la primera recarga en vuelo:** no se puede provocar (la guarda del panel), así que lo verifiqué por lectura.
+- **Los enlaces con mayúsculas en el gradebook:** por lectura (los ids salen de los datos), sin caso.
+- **El backend:** 01e no lo toca.
+- **La suite completa:** la corre el manager.
+- **El navegador:** no se abre.
+
+### V-01 final
+- `v01-foro01e-r1.txt` sigue con 310 de 310 `OK`: ninguna `*.ataque` previa cambió.
+- Lista nueva: `foro01-arranque/v01-foro01e-r2.txt`, con 312 rutas. `sha256sum -c` da 312 de 312 `OK`, y su SHA-256 es `84b3a6d056286f9985435e7b12d72b35a35c7e5a4e9c0d7ff8fef116a68e113b`. Suma mis dos archivos nuevos a las 310 de antes:
+  - `frontend/src/features/tareas/foros-01e-r2.ataque.test.tsx`: SHA-256 `2e7bd22e…`, 7 casos;
+  - `frontend/src/features/clases/foros-01e-r2-alumnos.ataque.test.tsx`: SHA-256 `97540265…`, 1 caso.
+- `git status --short -- frontend` da 29: los 27 de antes más mis dos archivos.

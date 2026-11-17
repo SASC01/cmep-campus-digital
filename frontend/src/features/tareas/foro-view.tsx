@@ -1,6 +1,6 @@
-import { MessagesSquare } from "lucide-react"
+import { MessagesSquare, Users } from "lucide-react"
 import { useRef, type ReactNode } from "react"
-import { useParams } from "react-router"
+import { Link, useParams } from "react-router"
 
 import { AdjuntosDePublicacion } from "@/components/adjuntos/adjuntos-de-publicacion"
 import { Cargando } from "@/components/cargando"
@@ -8,6 +8,7 @@ import { ConClaseDeLaRuta } from "@/components/clase/con-clase-de-la-ruta"
 import { FirmaDelAutor } from "@/components/clase/firma-del-autor"
 import { MensajeError } from "@/components/mensaje-error"
 import { Badge } from "@/components/ui/badge"
+import { buttonVariants } from "@/components/ui/button-variants"
 import { Card, CardContent } from "@/components/ui/card"
 import { formatearFechaHora } from "@/lib/format"
 
@@ -16,7 +17,12 @@ import { DetallesDeLaTarea } from "./components/detalles-de-la-tarea"
 import { MiParticipacion } from "./components/mi-participacion"
 import { ParticipacionesDelForo } from "./components/participaciones-del-foro"
 import { RubricaDeSoloLectura } from "./components/rubrica-de-solo-lectura"
-import { MENSAJES_ERROR_FORO, POLITICA_DEL_FORO, TEXTOS_DETALLE_FORO } from "./data"
+import {
+  MENSAJES_ERROR_FORO,
+  POLITICA_DEL_FORO,
+  TEXTOS_DETALLE_FORO,
+  TEXTOS_PARTICIPANTES,
+} from "./data"
 import {
   useAvisoDeRecargaFallidaDelForo,
   useFocoAlPerderseElControl,
@@ -25,6 +31,7 @@ import {
 } from "./hooks"
 import {
   claveDeFocoDeLaTarea,
+  enlaceAParticipantes,
   errorQueReemplazaLaVistaDelForo,
   idCanonicoDeLaRuta,
   mensajeDeConsultaForo,
@@ -114,6 +121,22 @@ function DetalleDelForo({ claseId, foroId }: DetalleDelForoProps) {
         <div className="flex flex-col gap-5">
           <DetallesDeLaTarea tarea={foro} politica={POLITICA_DEL_FORO} />
           {perspectiva === "estudiante" && <MiParticipacion claseId={claseId} foroId={foroId} />}
+          {/* FORO-01e (§D-8.3, E1-10): el panel «Participantes» del maestro y el admin, con el enlace a la
+              tabla para calificar (también en una clase archivada: se lee). No pide nada. */}
+          {perspectiva !== "estudiante" && (
+            <Card>
+              <CardContent className="flex flex-col gap-3">
+                <h3 className="text-h3">{TEXTOS_PARTICIPANTES.panel}</h3>
+                <Link
+                  to={enlaceAParticipantes(base, foroId)}
+                  className={buttonVariants({ variant: "outline", className: "self-start" })}
+                >
+                  <Users aria-hidden="true" />
+                  {TEXTOS_PARTICIPANTES.verParticipantes}
+                </Link>
+              </CardContent>
+            </Card>
+          )}
           {perspectiva !== "estudiante" && (
             <AccionesDeLaTarea
               claseId={claseId}

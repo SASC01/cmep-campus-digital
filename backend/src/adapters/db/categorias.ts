@@ -42,8 +42,14 @@ export const listarCategorias = async (
   }))
 }
 
-const mensajeConTareas = (nombre: string, tareas: number): string =>
-  `«${nombre}» tiene ${tareas} ${tareas === 1 ? "tarea" : "tareas"}. Muévelas a otra categoría antes de quitarla.`
+// FORO-01b (§D-3.3, E1-9): con solo tareas, el texto de siempre, letra por letra; si entre ellas hay
+// foros, el texto habla de actividades (el total cuenta tareas y foros).
+const mensajeConActividades = (nombre: string, total: number, foros: number): string => {
+  if (foros === 0) {
+    return `«${nombre}» tiene ${total} ${total === 1 ? "tarea" : "tareas"}. Muévelas a otra categoría antes de quitarla.`
+  }
+  return `«${nombre}» tiene ${total} ${total === 1 ? "actividad" : "actividades"}. Muévelas a otra categoría antes de quitarla.`
+}
 
 // Bloquea FOR UPDATE las categorías que se quitan ANTES de contar sus tareas (§D-3, §D-7): una tarea
 // que se está creando con esa categoría la tiene bloqueada FOR KEY SHARE (referencias.ts), así que el
@@ -68,9 +74,13 @@ const rechazarSiTienenTareas = async (
   })
   const conTareas = conteos.find((conteo) => conteo._count._all > 0)
   if (conTareas === undefined || conTareas.categoriaId === null) return
+  // Solo en el camino del error, una sentencia más: cuántas de esas actividades son foros.
+  const foros = await tx.tarea.count({
+    where: { categoriaId: conTareas.categoriaId, publicacion: { tipo: "foro" } },
+  })
   throw new AppError(
     "CATEGORIA_CON_TAREAS",
-    mensajeConTareas(nombres.get(conTareas.categoriaId) ?? "", conTareas._count._all),
+    mensajeConActividades(nombres.get(conTareas.categoriaId) ?? "", conTareas._count._all, foros),
     409,
   )
 }

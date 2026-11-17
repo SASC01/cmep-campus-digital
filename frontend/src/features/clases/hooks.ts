@@ -16,6 +16,7 @@ import {
   listaComentariosRespuestaSchema,
   listaCategoriasRespuestaSchema,
   listaDudasRespuestaSchema,
+  listaForosRespuestaSchema,
   listaPublicacionesRespuestaSchema,
   listaRecursosRespuestaSchema,
   listaTemasRespuestaSchema,
@@ -61,8 +62,12 @@ import { esClaseArchivada } from "@/components/clase/lib"
 import { useFocoAlPerderseElControl } from "@/components/foco/hooks"
 import { consultaMe } from "@/services/sesionService"
 import { api, esApiError } from "@/services/apiClient"
+import { clavePrefijoDeCalificaciones } from "@/services/calificacionesService"
 import {
   claveCategorias,
+  claveForo,
+  claveListaDeForos,
+  clavePrefijoDeForos,
   clavePrefijoDelTrabajo,
   claveTarea,
   claveTemas,
@@ -104,6 +109,7 @@ import {
   LIMITE_CLASES,
   LIMITE_COMENTARIOS,
   LIMITE_DUDAS,
+  LIMITE_FOROS,
   LIMITE_PAGINAS_RECURSOS,
   LIMITE_PAGINAS_TRABAJO,
   LIMITE_PERSONAS,
@@ -804,6 +810,9 @@ export const useCandidatos = (claseId: string, termino: string) =>
 
 // Tras agregar o quitar, el roster, el buscador (el "Ya está en la clase" de cada fila), los
 // compañeros de esa clase y el contador de alumnos de "Mis clases" quedan al día.
+// FORO-01e (DH-21 a, decisión del humano 2026-11-17): también cambian quiénes aparecen en las entregas de
+// cada tarea, en «Participantes» de cada foro y en el gradebook de la clase; se marcan viejos por prefijo
+// (sin observador no se pide nada; al volver se piden).
 const invalidarPersonasDeLaClase = async (
   queryClient: ReturnType<typeof useQueryClient>,
   claseId: string,
@@ -813,6 +822,9 @@ const invalidarPersonasDeLaClase = async (
     queryClient.invalidateQueries({ queryKey: claveCandidatos(claseId) }),
     queryClient.invalidateQueries({ queryKey: clavePersonas(claseId) }),
     queryClient.invalidateQueries({ queryKey: CLAVE_CLASES_IMPARTIDAS }),
+    queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
+    queryClient.invalidateQueries({ queryKey: clavePrefijoDeForos(claseId) }),
+    queryClient.invalidateQueries({ queryKey: clavePrefijoDeCalificaciones(claseId) }),
   ])
 }
 
@@ -1265,10 +1277,15 @@ export const useTemasDelRecurso = (claseId: string, editar: boolean) => {
 export const useTemasDeLaSeccion = (claseId: string, seccion: SeccionDeTemas) =>
   useQuery({
     queryKey: claveTemasDeLaSeccion(claseId, seccion),
-    queryFn: () =>
-      api(`/api/clases/${claseId}/temas?${new URLSearchParams({ seccion }).toString()}`, {
+    queryFn: () => {
+      // FORO-01d (§D-8.3, E1-4): "Actividades" también cuenta los foros (conForos=si); la clave no
+      // cambia. "Recursos" pide como siempre.
+      const parametros = new URLSearchParams({ seccion })
+      if (seccion === "actividades") parametros.set("conForos", "si")
+      return api(`/api/clases/${claseId}/temas?${parametros.toString()}`, {
         schema: listaTemasRespuestaSchema,
-      }),
+      })
+    },
   })
 
 // Enmienda 5: una sola instancia por módulo. Toda lectura de GET …/trabajo (primera página y "Ver más")
@@ -1284,9 +1301,11 @@ export const useTrabajo = (claseId: string, tema: string) =>
       const limite =
         pageParam === undefined ? LIMITE_PRIMERA_PAGINA_TRABAJO : LIMITE_PAGINAS_TRABAJO
       // CLASES-03c2 (§D-7.6): "Actividades de aprendizaje" pide solo las actividades del tema.
+      // FORO-01d (§D-8.3, E1-4): con conForos=si también trae los foros; la clave no cambia.
       const parametros = new URLSearchParams({
         tema,
         seccion: "actividades",
+        conForos: "si",
         limite: String(limite),
       })
       if (pageParam !== undefined) parametros.set("cursor", pageParam)
@@ -1462,10 +1481,11 @@ export const useRenombrarTema = (claseId: string) => {
       }),
     onSuccess: async () => {
       toast.success(TEXTOS_TEMAS.avisoRenombrado)
-      // El nombre del tema también sale en el detalle de sus tareas.
+      // El nombre del tema también sale en el detalle de sus tareas y de sus foros (FORO-01c2, T-03).
       await Promise.all([
         invalidarTemas(queryClient, claseId),
         queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
+        queryClient.invalidateQueries({ queryKey: clavePrefijoDeForos(claseId) }),
       ])
     },
     onError: (error) => {
@@ -1486,9 +1506,11 @@ export const useBorrarTema = (claseId: string) => {
       }),
     onSuccess: async () => {
       toast.success(TEXTOS_TEMAS.avisoBorrado)
+      // FORO-01c2 (T-03): el tema también sale en el detalle de sus foros.
       await Promise.all([
         invalidarTemasYTrabajo(queryClient, claseId),
         queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
+        queryClient.invalidateQueries({ queryKey: clavePrefijoDeForos(claseId) }),
       ])
     },
     onError: async (error) => {
@@ -1592,6 +1614,9 @@ export const useMoverElemento = (claseId: string) => {
       await Promise.all([
         invalidarTemasYTrabajo(queryClient, claseId),
         queryClient.invalidateQueries({ queryKey: claveTarea(claseId, publicacionId) }),
+        // FORO-01d (§E11.1, nota (c)): mover un foro cambia el tema de su detalle (no sus
+        // participaciones, que cuelgan de esa clave: exact).
+        queryClient.invalidateQueries({ queryKey: claveForo(claseId, publicacionId), exact: true }),
         // CLASES-03d (§D-8.4): mover un recurso sube su versión; su edición se vuelve a pedir.
         queryClient.invalidateQueries({ queryKey: claveRecurso(claseId, publicacionId) }),
       ])
@@ -1804,6 +1829,18 @@ export const useDudas = (claseId: string) =>
     queryFn: ({ pageParam }: PaginaConCursor) =>
       api(`/api/clases/${claseId}/dudas?${conCursor(LIMITE_DUDAS, pageParam)}`, {
         schema: listaDudasRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+
+// FORO-01c1 (§D-8.2): la lista de la sección "Foro", del más reciente al más antiguo, de 20 en 20.
+export const useForos = (claseId: string) =>
+  useInfiniteQuery({
+    queryKey: claveListaDeForos(claseId),
+    queryFn: ({ pageParam }: PaginaConCursor) =>
+      api(`/api/clases/${claseId}/foros?${conCursor(LIMITE_FOROS, pageParam)}`, {
+        schema: listaForosRespuestaSchema,
       }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
@@ -2116,8 +2153,11 @@ export const useGuardarCategorias = (claseId: string) => {
     onSuccess: async (respuesta) => {
       queryClient.setQueryData(claveCategorias(claseId), respuesta)
       toast.success(TEXTOS_CATEGORIAS.avisoGuardadas)
-      // La categoría y su peso también salen en el detalle de las tareas.
-      await queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] })
+      // La categoría y su peso también salen en el detalle de las tareas y de los foros (FORO-01c2, T-03).
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
+        queryClient.invalidateQueries({ queryKey: clavePrefijoDeForos(claseId) }),
+      ])
     },
     onError: async (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)

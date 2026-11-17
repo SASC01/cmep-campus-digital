@@ -75,6 +75,11 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
     // respuestas-de-duda.tsx; `duda` y `respuesta` entran a los nombres admitidos de la segunda regla.
     // Sigue protegiendo que el botón decida por el dato y nunca por el rol, y que nadie más lea
     // puedeBorrar.
+    // FORO-01d ronda 0 bis (C-21, §E12; §D-11 y §D-8.4): «Borrar» de una participación lee puedeBorrar
+    // de la participación en participacion-del-foro.tsx y el de una réplica lo lee de la réplica en
+    // replicas-de-participacion.tsx (solo el admin lo recibe en true); son los dos lectores nuevos. La
+    // segunda regla no cambia: los dos leen el campo directo en el JSX, sin asignarlo. Sigue
+    // protegiendo que el botón decida por el dato y nunca por el rol, y que nadie más lea puedeBorrar.
     expect(rutasCon(/\.puedeBorrar\b/)).toEqual([
       "/src/features/clases/components/comentarios-de-publicacion.tsx",
       "/src/features/clases/components/elemento-de-duda.tsx",
@@ -82,6 +87,8 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
       "/src/features/clases/components/publicacion-del-muro.tsx",
       "/src/features/clases/components/respuestas-de-duda.tsx",
       "/src/features/tareas/components/acciones-de-la-tarea.tsx",
+      "/src/features/tareas/components/participacion-del-foro.tsx",
+      "/src/features/tareas/components/replicas-de-participacion.tsx",
     ])
     expect(
       lineasCon(
@@ -120,11 +127,14 @@ describe("ataque CLASES-02c r1: reglas de 02c en el código fuente", () => {
     // formulario de duda solo para estudiante y maestro); ElementoDeDuda y RespuestasDeDuda reciben lo
     // que necesitan por props. Sigue protegiendo que nadie más la llame ni compare el pathname con un
     // prefijo.
+    // FORO-01c1 ronda 0 (C-10, §E8.2; §D-8.2): foros-view.tsx la llama como dudas-view.tsx. Sigue
+    // protegiendo que nadie más la llame ni compare el pathname con un prefijo.
     expect(rutasCon(/perspectivaDeRuta\(/)).toEqual([
       "/src/features/clases/categorias-view.tsx",
       "/src/features/clases/clase-layout.tsx",
       "/src/features/clases/dudas-view.tsx",
       "/src/features/clases/editar-recurso-view.tsx",
+      "/src/features/clases/foros-view.tsx",
       "/src/features/clases/muro-view.tsx",
       "/src/features/clases/personas-view.tsx",
       "/src/features/clases/recursos-view.tsx",

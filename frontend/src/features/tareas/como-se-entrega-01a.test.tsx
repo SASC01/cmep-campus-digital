@@ -238,7 +238,7 @@ describe("la fila «Entrega» del detalle (PR-1A15)", () => {
 // La regla 9 (ESLint) impide importar features/clases desde features/tareas; para comprobar con toBe
 // que su "Sin tema" es el compartido, la prueba carga ese módulo con import.meta.glob (solo lee la
 // constante; el código de producción no se acopla).
-const modulosDeClases = import.meta.glob<{ TEXTOS_FORMULARIO_PUBLICACION: { sinTema: string } }>(
+const modulosDeClases = import.meta.glob<{ TEXTOS_FORMULARIO_RECURSO: { sinTema: string } }>(
   "/src/features/clases/data.ts",
   { eager: true },
 )
@@ -259,7 +259,8 @@ describe("textos declarados una sola vez (PR-1A17, O-2 de TAREAS-01d)", () => {
     expect(TEXTOS_DE_LA_CLASE.sinTema).toBe("Sin tema")
     const datosDeClases = modulosDeClases["/src/features/clases/data.ts"]
     if (datosDeClases === undefined) throw new Error("Precondición: features/clases/data.ts existe")
-    expect(datosDeClases.TEXTOS_FORMULARIO_PUBLICACION.sinTema).toBe(TEXTOS_DE_LA_CLASE.sinTema)
+    // FORO-01c1 (PR-1A17, lista cerrada): TEXTOS_FORMULARIO_PUBLICACION ya no lleva sinTema.
+    expect(datosDeClases.TEXTOS_FORMULARIO_RECURSO.sinTema).toBe(TEXTOS_DE_LA_CLASE.sinTema)
     expect(TEXTOS_FORMULARIO_TAREA.sinTema).toBe(TEXTOS_DE_LA_CLASE.sinTema)
     expect(TEXTOS_DETALLE_TAREA.sinTema).toBe(TEXTOS_DE_LA_CLASE.sinTema)
   })

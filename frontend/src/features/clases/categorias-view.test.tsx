@@ -119,7 +119,7 @@ describe("CategoriasView (PR-1E03)", () => {
 
     expect(
       await screen.findByText(
-        "Esta clase no tiene categorías. Sus tareas se califican por puntos.",
+        "Esta clase no tiene categorías. Sus actividades se califican por puntos.",
       ),
     ).toBeInTheDocument()
     expect(screen.getByRole("heading", { name: "Categorías de calificación" })).toBeInTheDocument()
@@ -169,11 +169,11 @@ describe("CategoriasView (PR-1E03)", () => {
     await screen.findByDisplayValue("Tareas")
     const [examen, tareas] = filas()
 
-    expect(within(examen ?? document.body).getByText("0 tareas")).toBeInTheDocument()
+    expect(within(examen ?? document.body).getByText("0 actividades")).toBeInTheDocument()
     expect(
       within(examen ?? document.body).getByRole("button", { name: /^Quitar/ }),
     ).toBeInTheDocument()
-    expect(within(tareas ?? document.body).getByText("Tiene 3 tareas.")).toBeInTheDocument()
+    expect(within(tareas ?? document.body).getByText("Tiene 3 actividades.")).toBeInTheDocument()
     expect(within(tareas ?? document.body).queryByRole("button", { name: /^Quitar/ })).toBeNull()
   })
 
@@ -239,7 +239,7 @@ describe("CategoriasView (PR-1E03)", () => {
       },
     ])
     // La respuesta trae el id de la nueva: guardar otra vez ya no la crea de nuevo.
-    await waitFor(() => expect(screen.getAllByText("0 tareas")).toHaveLength(2))
+    await waitFor(() => expect(screen.getAllByText("0 actividades")).toHaveLength(2))
     fireEvent.click(screen.getByRole("button", { name: "Guardar categorías" }))
     await waitFor(() => expect(servidor.guardados()).toHaveLength(2))
     expect(servidor.guardados()[1]?.cuerpo).toEqual({
@@ -275,7 +275,7 @@ describe("CategoriasView (PR-1E03)", () => {
       ),
     )
     await waitFor(() => expect(filas()).toHaveLength(2))
-    expect(screen.getByText("Tiene 3 tareas.")).toBeInTheDocument()
+    expect(screen.getByText("Tiene 3 actividades.")).toBeInTheDocument()
     expect(total()).toHaveTextContent("Total: 100 %")
   })
 
@@ -322,7 +322,7 @@ describe("CategoriasView (PR-1E03)", () => {
       expect(screen.getByRole("button", { name: "Agregar categoría" })).toHaveFocus(),
     )
     expect(
-      screen.getByText("Esta clase no tiene categorías. Sus tareas se califican por puntos."),
+      screen.getByText("Esta clase no tiene categorías. Sus actividades se califican por puntos."),
     ).toBeInTheDocument()
   })
 
@@ -429,7 +429,7 @@ describe("CategoriasView: errores y foco de las filas (T-17 y T-18)", () => {
       fireEvent.submit(enfocado.closest("form") ?? document.body)
 
       await waitFor(() => expect(aviso.success).toHaveBeenCalledTimes(1))
-      await waitFor(() => expect(screen.getByText("0 tareas")).toBeInTheDocument())
+      await waitFor(() => expect(screen.getByText("0 actividades")).toBeInTheDocument())
       expect(elegido()).toHaveFocus()
       expect(elegido()).toBe(enfocado)
 
@@ -455,7 +455,7 @@ describe("CategoriasView: errores y foco de las filas (T-17 y T-18)", () => {
     fireEvent.click(boton)
 
     await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Categorías guardadas"))
-    await waitFor(() => expect(screen.getByText("0 tareas")).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText("0 actividades")).toBeInTheDocument())
     expect(boton).toHaveFocus()
   })
 
@@ -479,7 +479,7 @@ describe("CategoriasView: errores y foco de las filas (T-17 y T-18)", () => {
     fireEvent.submit(peso.closest("form") ?? document.body)
 
     await waitFor(() => expect(aviso.error).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(screen.getByText("Tiene 3 tareas.")).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText("Tiene 3 actividades.")).toBeInTheDocument())
     expect(screen.queryByDisplayValue("Proyecto")).toBeNull()
     expect(nombreDe(filaN(0))).toHaveFocus()
     expect(document.activeElement).not.toBe(document.body)

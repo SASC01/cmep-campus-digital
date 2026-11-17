@@ -1,3 +1,4 @@
+import { TEXTOS_POR_ACTIVIDAD, type Actividad } from "../../core/actividades.js"
 import { prefijoDeEntrega } from "../../core/archivos/politica.js"
 import { firmaDelAutor } from "../../core/autoria.js"
 import {
@@ -17,6 +18,7 @@ import {
 } from "../../core/entregas/entregas.js"
 import { AppError } from "../../core/errores.js"
 import { paginar } from "../../core/paginacion.js"
+import { esActividadDeTipo } from "./actividades.js"
 import { SELECT_ARCHIVO, VIGENCIA_PENDIENTE_MS, type ArchivoDb } from "./archivos.js"
 import {
   ejecutorSqlDe,
@@ -98,8 +100,9 @@ export interface EntregaDeAlumnoDb {
   calificacion: CalificacionDb | null
 }
 
-const errorTareaNoEncontrada = (): AppError =>
-  new AppError("TAREA_NO_ENCONTRADA", "Esa tarea ya no existe.", 404)
+// FORO-01a (§D-2.4): el mismo código, con el texto de la actividad.
+const errorTareaNoEncontrada = (actividad: Actividad = "tarea"): AppError =>
+  new AppError("TAREA_NO_ENCONTRADA", TEXTOS_POR_ACTIVIDAD[actividad].tareaNoEncontrada, 404)
 
 const errorArchivoInvalido = (): AppError =>
   new AppError(
@@ -129,7 +132,10 @@ const enlacesDe = (valor: Prisma.JsonValue): string[] => {
   })
 }
 
-const SELECT_ENTREGA = {
+// FORO-01a (§D-3.3): SELECT_ENTREGA, calificacionDe, alumnoInscrito, bloquearTareaParaEntregar,
+// asegurarFilaDeEntrega y bloquearEntrega se exportan, sin cambiar su cuerpo, para que
+// adapters/db/foros.ts reutilice los mismos bloqueos y lecturas. No se reexportan en index.ts.
+export const SELECT_ENTREGA = {
   id: true,
   estado: true,
   fechaEntrega: true,
@@ -151,7 +157,7 @@ const SELECT_TAREA_PARA_ENTREGAR = {
 // puntajes_rubrica por entrega_id; los criterios por su PK). Una calificada sin calificación (o al
 // revés) es inalcanzable por entregas_calificacion_segun_estado: error explícito, nunca un valor
 // inventado. El Decimal de Prisma se entrega como number (exacto con dos decimales hasta 1000).
-const calificacionDe = async (
+export const calificacionDe = async (
   db: Ejecutor,
   {
     entrega,
@@ -207,7 +213,7 @@ const adjuntosDeEntrega = (
 // Un alumno inscrito con cuenta activa en la clase (por la PK de inscripciones). Es un filtro de datos
 // de las rutas de los maestros (§D-0.1), no una verificación de permisos: sin fila, ALUMNO_NO_ENCONTRADO,
 // igual para uno inexistente, de otra clase, dado de baja, desactivado o que no es estudiante.
-const alumnoInscrito = async (
+export const alumnoInscrito = async (
   db: Ejecutor,
   { claseId, alumnoId }: { claseId: string; alumnoId: string },
 ): Promise<AlumnoDeEntregaDb> => {
@@ -219,11 +225,15 @@ const alumnoInscrito = async (
   return { id: alumnoId, nombre: inscripcion.usuario.nombre }
 }
 
+// FORO-01a (§D-3.3): con `tipo` (por omisión "tarea"), solo la encuentra si es esa actividad.
 const existeLaTarea = async (
   db: Ejecutor,
-  { claseId, tareaId }: { claseId: string; tareaId: string },
+  { claseId, tareaId, tipo = "tarea" }: { claseId: string; tareaId: string; tipo?: Actividad },
 ): Promise<boolean> =>
-  (await db.tarea.findFirst({ where: { id: tareaId, claseId }, select: { id: true } })) !== null
+  (await db.tarea.findFirst({
+    where: { id: tareaId, claseId, publicacion: { tipo } },
+    select: { id: true },
+  })) !== null
 
 // §D-3.3. Sentencias una tras otra: la tarea (con lo que decide el cierre), la entrega y sus archivos.
 // null: la tarea no existe en esa clase. No escribe nada.
@@ -236,8 +246,10 @@ const leerMiEntregaCon = async (
     ahora,
   }: { claseId: string; tareaId: string; alumnoId: string; ahora: Date },
 ): Promise<MiEntregaDb | null> => {
+  // FORO-01a (§D-3.3): solo una tarea; con el id de un foro, null (la subida de un archivo de entrega
+  // y GET …/entrega responden 404).
   const fila = await db.tarea.findFirst({
-    where: { id: tareaId, claseId },
+    where: { id: tareaId, claseId, publicacion: { tipo: "tarea" } },
     select: { ...SELECT_TAREA_PARA_ENTREGAR, puntos: true },
   })
   if (fila === null) return null
@@ -292,7 +304,7 @@ interface FilaTareaParaEntregar {
 // UPDATE de borrarTarea (quedan en serie: si el borrado confirma antes, aquí ya no hay fila y la
 // entrega responde 404) y no con el FOR NO KEY UPDATE de editarTarea (la entrega decide con la tarea
 // confirmada que ve). null: la tarea no existe en esa clase.
-const bloquearTareaParaEntregar = async (
+export const bloquearTareaParaEntregar = async (
   tx: Prisma.TransactionClient,
   { tareaId, claseId }: { tareaId: string; claseId: string },
 ): Promise<TareaParaEntregar | null> => {
@@ -311,7 +323,7 @@ const bloquearTareaParaEntregar = async (
 
 // La fila perezosa (S-01, §D-0.3): nace en la transacción de la primera escritura, con el id y las
 // fechas por defecto de la tabla. Con la fila ya creada no hace nada (y no lanza P2002).
-const asegurarFilaDeEntrega = async (
+export const asegurarFilaDeEntrega = async (
   tx: Prisma.TransactionClient,
   { tareaId, alumnoId }: { tareaId: string; alumnoId: string },
 ): Promise<void> => {
@@ -358,7 +370,7 @@ interface FilaDeEntregaBloqueada {
 
 // La fila de la entrega bloqueada (FOR NO KEY UPDATE): dos entregas, o una entrega y una anulación,
 // del mismo alumno quedan en serie aquí y la segunda decide con lo que dejó la primera.
-const bloquearEntrega = async (
+export const bloquearEntrega = async (
   tx: Prisma.TransactionClient,
   { tareaId, alumnoId }: { tareaId: string; alumnoId: string },
 ): Promise<{ id: string; estado: EstadoEntrega; version: number } | null> => {
@@ -435,6 +447,8 @@ export const entregar = (
   enTransaccion(ejecutor, async (tx) => {
     const tarea = await bloquearTareaParaEntregar(tx, { tareaId, claseId })
     if (tarea === null) return null
+    // FORO-01a (§D-3.3): con el id de un foro, 404 sin escribir nada.
+    if (!(await esActividadDeTipo(tx, { id: tareaId, claseId, tipo: "tarea" }))) return null
     await asegurarFilaDeEntrega(tx, { tareaId, alumnoId })
     const fila = await bloquearEntrega(tx, { tareaId, alumnoId })
     if (fila === null) throw errorEntregaMalFormada()
@@ -485,6 +499,7 @@ export const anularEntrega = (
   enTransaccion(ejecutor, async (tx) => {
     const tarea = await bloquearTareaParaEntregar(tx, { tareaId, claseId })
     if (tarea === null) return null
+    if (!(await esActividadDeTipo(tx, { id: tareaId, claseId, tipo: "tarea" }))) return null
     const fila = await bloquearEntrega(tx, { tareaId, alumnoId })
     decidirAnulacion({ tarea, estado: fila === null ? "asignado" : fila.estado, ahora })
     if (fila === null) throw entregaNoRealizada()
@@ -532,10 +547,13 @@ export const calificarEntrega = (
     puntajes,
     calificacion,
     comentario,
+    tipo = "tarea",
   }: {
     claseId: string
     tareaId: string
     alumnoId: string
+    // FORO-01a (§D-3.3): la actividad que se califica; por omisión, una tarea.
+    tipo?: Actividad
     // Quien califica: el autor del comentario de devolución.
     autorId: string
     ahora: Date
@@ -553,6 +571,7 @@ export const calificarEntrega = (
   enTransaccion(ejecutor, async (tx) => {
     const tarea = await bloquearTareaParaCalificar(tx, { tareaId, claseId })
     if (tarea === null) return null
+    if (!(await esActividadDeTipo(tx, { id: tareaId, claseId, tipo }))) return null
     await alumnoInscrito(tx, { claseId, alumnoId })
     const criterios = await tx.criterioRubrica.findMany({
       where: { tareaId },
@@ -563,11 +582,12 @@ export const calificarEntrega = (
     const fila = await bloquearEntrega(tx, { tareaId, alumnoId })
     if (fila === null) throw errorEntregaMalFormada()
 
-    exigirVersion({ leida: version, actual: fila.version }, entregaModificada)
+    exigirVersion({ leida: version, actual: fila.version }, () => entregaModificada(tipo))
     exigirEntregaCalificable({
       estado: fila.estado,
       tarea: { fechaLimite: tarea.fechaLimite, aceptaTardias: tarea.aceptaTardias },
       ahora,
+      actividad: tipo,
     })
     const decidida = decidirCalificacion({
       criterios,
@@ -575,6 +595,7 @@ export const calificarEntrega = (
       puntosVistos: puntosDeLaTarea,
       puntajes,
       calificacionDirecta: calificacion,
+      actividad: tipo,
     })
 
     await tx.puntajeRubrica.deleteMany({ where: { entregaId: fila.id } })
@@ -604,7 +625,7 @@ export const calificarEntrega = (
       })
     }
     await alGuardar(ejecutorSqlDe(tx), { entregaId: fila.id, version: actualizada.version })
-    return leerEntregaDeAlumno({ claseId, tareaId, alumnoId }, tx)
+    return leerEntregaDeAlumno({ claseId, tareaId, alumnoId, tipo }, tx)
   })
 
 // Descarga del alumno (§D-3.6): un archivo confirmado de su propia entrega en esa tarea de esa clase.
@@ -656,9 +677,16 @@ const listarEntregasCon = async (
     tareaId,
     cursor,
     limite,
-  }: { claseId: string; tareaId: string; cursor: string | undefined; limite: number },
+    tipo = "tarea",
+  }: {
+    claseId: string
+    tareaId: string
+    cursor: string | undefined
+    limite: number
+    tipo?: Actividad
+  },
 ): Promise<ListaEntregasDb | null> => {
-  if (!(await existeLaTarea(db, { claseId, tareaId }))) return null
+  if (!(await existeLaTarea(db, { claseId, tareaId, tipo }))) return null
   const { where, orderBy, take } = await condicionesDePaginaDeAlumnos(
     { claseId, cursor, limite },
     db,
@@ -712,7 +740,13 @@ const listarEntregasCon = async (
 // El cursor se comprueba antes de la página y los conteos salen de la misma instantánea que la
 // página: una entrega o una inscripción que llega en medio no deja una respuesta incoherente.
 export const listarEntregas = (
-  params: { claseId: string; tareaId: string; cursor: string | undefined; limite: number },
+  params: {
+    claseId: string
+    tareaId: string
+    cursor: string | undefined
+    limite: number
+    tipo?: Actividad
+  },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaEntregasDb | null> =>
   enTransaccion(ejecutor, (tx) => listarEntregasCon(tx, params), { instantaneaUnica: true })
@@ -722,10 +756,15 @@ export const listarEntregas = (
 // y sin calificación.
 const leerEntregaDeAlumnoCon = async (
   db: Ejecutor,
-  { claseId, tareaId, alumnoId }: { claseId: string; tareaId: string; alumnoId: string },
+  {
+    claseId,
+    tareaId,
+    alumnoId,
+    tipo = "tarea",
+  }: { claseId: string; tareaId: string; alumnoId: string; tipo?: Actividad },
 ): Promise<EntregaDeAlumnoDb | null> => {
   const tarea = await db.tarea.findFirst({
-    where: { id: tareaId, claseId },
+    where: { id: tareaId, claseId, publicacion: { tipo } },
     select: { puntos: true },
   })
   if (tarea === null) return null
@@ -759,7 +798,7 @@ const leerEntregaDeAlumnoCon = async (
 }
 
 export const leerEntregaDeAlumno = (
-  params: { claseId: string; tareaId: string; alumnoId: string },
+  params: { claseId: string; tareaId: string; alumnoId: string; tipo?: Actividad },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<EntregaDeAlumnoDb | null> =>
   enTransaccion(ejecutor, (tx) => leerEntregaDeAlumnoCon(tx, params), { instantaneaUnica: true })
@@ -825,6 +864,7 @@ const listarHiloPrivadoCon = async (
     cursor,
     limite,
     actorId,
+    tipo = "tarea",
   }: {
     claseId: string
     tareaId: string
@@ -833,9 +873,11 @@ const listarHiloPrivadoCon = async (
     cursor: string | undefined
     limite: number
     actorId: string
+    // FORO-01a (§D-3.3): las devoluciones de un foro son el hilo de la entrega del alumno en él.
+    tipo?: Actividad
   },
 ): Promise<ListaComentariosPrivadosDb | null> => {
-  if (!(await existeLaTarea(db, { claseId, tareaId }))) return null
+  if (!(await existeLaTarea(db, { claseId, tareaId, tipo }))) return null
   if (comprobarInscripcion) await alumnoInscrito(db, { claseId, alumnoId })
   const entrega = await db.entrega.findUnique({
     where: { tareaId_alumnoId: { tareaId, alumnoId } },
@@ -877,6 +919,7 @@ export const listarHiloPrivado = (
     cursor: string | undefined
     limite: number
     actorId: string
+    tipo?: Actividad
   },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaComentariosPrivadosDb | null> =>
@@ -912,6 +955,8 @@ export const comentarEnHiloPrivado = (
   enTransaccion(ejecutor, async (tx) => {
     const tarea = await bloquearTareaParaEntregar(tx, { tareaId, claseId })
     if (tarea === null) return null
+    // FORO-01a (§D-3.3, P-09): un foro no tiene hilo privado; con su id, 404 sin escribir nada.
+    if (!(await esActividadDeTipo(tx, { id: tareaId, claseId, tipo: "tarea" }))) return null
     if (comprobarInscripcion) await alumnoInscrito(tx, { claseId, alumnoId })
     await asegurarFilaDeEntrega(tx, { tareaId, alumnoId })
     const entrega = await tx.entrega.findUnique({

@@ -302,6 +302,10 @@ const medidasDe = (indicador: HTMLElement | null) => ({
 // «Dudas» en el índice 3, «Personas» pasa del índice 3 al 4 y «Calificaciones» del 4 al 5 (posición
 // simulada "400px" → "500px", en esperadas, opcionDe y las fotos); «Avisos», «Actividades de
 // aprendizaje» y «Recursos» no cambian. Siguen protegiendo lo mismo.
+// FORO-01c1 ronda 0, C-19 (§E8.2; §D-8.1): con «Foro» en el índice 2, «Recursos», «Dudas», «Personas» y
+// «Calificaciones» suben un índice (Personas 4 → 5 y Calificaciones 5 → 6; posición simulada "500px" →
+// "600px", en esperadas, opcionDe y las fotos); «Avisos» y «Actividades de aprendizaje» no cambian. Siguen
+// protegiendo lo mismo: el ciclo de vida del indicador, no la posición de cada sección.
 const esperadas = (i: number) => ({
   x: `${String(i * medidas.posicion)}px`,
   ancho: `${String(medidas.anchoBase + i * 10)}px`,
@@ -351,10 +355,10 @@ describe("el indicador no entra deslizándose desde una posición que no es la s
     alMedir = () => fotos.push(fotoDelIndicador())
     montar([`${BASES.maestro}/${CLASE_ID}/calificaciones`])
     const lista = await secciones()
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(5)))
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(6)))
     alMedir = null
     expect(fotos.length).toBeGreaterThan(0)
-    expect(fotos.filter((foto) => foto !== "ausente" && foto !== "500px")).toEqual([])
+    expect(fotos.filter((foto) => foto !== "ausente" && foto !== "600px")).toEqual([])
   })
 
   it("CL3-R1-01: de «Avisos» a «Editar clase» y de ahí a «Calificaciones», el indicador no reaparece con la posición vieja de «Avisos»", async () => {
@@ -370,10 +374,10 @@ describe("el indicador no entra deslizándose desde una posición que no es la s
     alMedir = () => fotos.push(fotoDelIndicador())
     await act(() => router.navigate(`${BASES.admin}/${CLASE_ID}/calificaciones`))
     expect(await screen.findByText("calificaciones admin")).toBeInTheDocument()
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(5)))
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(6)))
     alMedir = null
     expect(fotos.length).toBeGreaterThan(0)
-    expect(fotos.filter((foto) => foto !== "ausente" && foto !== "500px")).toEqual([])
+    expect(fotos.filter((foto) => foto !== "ausente" && foto !== "600px")).toEqual([])
   })
 
   it("CL3-R1-01 (control): al cambiar de «Avisos» a «Calificaciones» sí parte de la posición de «Avisos» (es el deslizamiento que pide el diseño)", async () => {
@@ -384,7 +388,7 @@ describe("el indicador no entra deslizándose desde una posición que no es la s
     const fotos: string[] = []
     alMedir = () => fotos.push(fotoDelIndicador())
     await act(() => router.navigate(`${BASES.maestro}/${CLASE_ID}/calificaciones`))
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(5)))
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(6)))
     alMedir = null
     expect(fotos[0]).toBe("0px")
   })
@@ -401,9 +405,9 @@ describe("la opción activa queda entera a la vista con el relleno del panel (CL
       montar([`${BASES.maestro}/${CLASE_ID}/calificaciones`])
       const lista = await secciones()
       const panel = panelDe(lista)
-      await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(5)))
+      await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(6)))
       expect(panel.scrollLeft).toBeGreaterThan(0)
-      expect(cortesDe(panel, opcionDe(lista, 5))).toEqual(ENTERA)
+      expect(cortesDe(panel, opcionDe(lista, 6))).toEqual(ENTERA)
     },
   )
 
@@ -417,8 +421,8 @@ describe("la opción activa queda entera a la vista con el relleno del panel (CL
     expect(cortesDe(panel, opcionDe(lista, 0))).toEqual(ENTERA)
     fireEvent.click(within(lista).getByRole("link", { name: "Calificaciones" }))
     expect(await screen.findByText("calificaciones maestro")).toBeInTheDocument()
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(5)))
-    expect(cortesDe(panel, opcionDe(lista, 5))).toEqual(ENTERA)
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(6)))
+    expect(cortesDe(panel, opcionDe(lista, 6))).toEqual(ENTERA)
   })
 
   it("CL3-R1-02 (control): sin relleno (el modelo de CL3-C04), la opción también queda entera a la vista", async () => {
@@ -428,9 +432,9 @@ describe("la opción activa queda entera a la vista con el relleno del panel (CL
     montar([`${BASES.maestro}/${CLASE_ID}/calificaciones`])
     const lista = await secciones()
     const panel = panelDe(lista)
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(5)))
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(6)))
     expect(panel.scrollLeft).toBeGreaterThan(0)
-    expect(cortesDe(panel, opcionDe(lista, 5))).toEqual(ENTERA)
+    expect(cortesDe(panel, opcionDe(lista, 6))).toEqual(ENTERA)
   })
 })
 
@@ -453,9 +457,9 @@ describe("el indicador en sus demás estados (sin hallazgo esperado)", () => {
     expect(cortesDe(panel, opcionDe(lista, 0))).toEqual(ENTERA)
     await act(() => router.navigate(-1))
     expect(await screen.findByText("calificaciones estudiante")).toBeInTheDocument()
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(5)))
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(6)))
     expect(panel.scrollLeft).toBeGreaterThan(0)
-    expect(cortesDe(panel, opcionDe(lista, 5))).toEqual(ENTERA)
+    expect(cortesDe(panel, opcionDe(lista, 6))).toEqual(ENTERA)
     expect(within(lista).getByRole("link", { name: "Calificaciones" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -520,7 +524,8 @@ describe("el indicador en sus demás estados (sin hallazgo esperado)", () => {
     const { vista } = montar([`${BASES.admin}/${CLASE_ID}/personas`])
     const lista = await secciones()
     // CLASES-03e ronda 0, adenda (C-8 ampliada por arbitraje): «Personas» pasa al índice 4.
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(4)))
+    // FORO-01c1 ronda 0 (C-19, §E8.2): «Personas» pasa al índice 5.
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(5)))
     vista.unmount()
     expect(desconectar).toHaveBeenCalled()
     await act(async () => {
@@ -564,7 +569,7 @@ describe("el indicador en sus demás estados (sin hallazgo esperado)", () => {
     stubClases()
     const { router } = montar([`${BASES.maestro}/${CLASE_ID}/calificaciones`])
     await waitFor(async () =>
-      expect(medidasDe(indicadorDe(await secciones()))).toEqual(esperadas(5)),
+      expect(medidasDe(indicadorDe(await secciones()))).toEqual(esperadas(6)),
     )
     await act(() => router.navigate(`${BASES.maestro}/${OTRA_CLASE_ID}/calificaciones`))
     expect(await screen.findByText("calificaciones maestro")).toBeInTheDocument()
@@ -575,7 +580,7 @@ describe("el indicador en sus demás estados (sin hallazgo esperado)", () => {
         `${BASES.maestro}/${OTRA_CLASE_ID}/calificaciones`,
       ),
     )
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(5)))
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(6)))
   })
 
   it("CL3-R1-08: pulsar la sección activa no mueve el indicador ni el panel", async () => {
@@ -586,12 +591,12 @@ describe("el indicador en sus demás estados (sin hallazgo esperado)", () => {
     const panel = panelDe(lista)
     // La medición y el desplazamiento de la entrada ocurren en el mismo efecto: con el indicador ya
     // medido, la entrada terminó.
-    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(5)))
+    await waitFor(() => expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(6)))
     expect(panel.scrollLeft).toBeGreaterThan(0)
     panel.scrollLeft = 20
     fireEvent.click(within(lista).getByRole("link", { name: "Calificaciones" }))
     await act(() => new Promise((resolver) => setTimeout(resolver, 50)))
-    expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(5))
+    expect(medidasDe(indicadorDe(lista))).toEqual(esperadas(6))
     expect(panel.scrollLeft).toBe(20)
   })
 })

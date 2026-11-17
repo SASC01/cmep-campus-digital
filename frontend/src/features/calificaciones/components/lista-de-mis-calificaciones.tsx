@@ -7,7 +7,7 @@ import { formatearPuntos } from "@/lib/format"
 import { vencimientoDe } from "@/lib/vencimiento"
 
 import { TEXTOS_MIS_CALIFICACIONES } from "../data"
-import { enlaceATarea } from "../lib"
+import { enlaceAForo, enlaceATarea } from "../lib"
 import type { TareaDeMisCalificaciones } from "../types"
 
 interface ListaDeMisCalificacionesProps {
@@ -42,7 +42,7 @@ export function ListaDeMisCalificaciones({ tareas }: ListaDeMisCalificacionesPro
                 <span className="font-bold wrap-anywhere">{tarea.titulo}</span>
               ) : (
                 <Link
-                  to={enlaceATarea(tarea.id)}
+                  to={tarea.tipo === "foro" ? enlaceAForo(tarea.id) : enlaceATarea(tarea.id)}
                   relative="path"
                   className="font-bold wrap-anywhere text-link underline-offset-4 hover:underline"
                 >

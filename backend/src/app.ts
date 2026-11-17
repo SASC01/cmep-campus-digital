@@ -24,6 +24,7 @@ import { dudasHandler } from "./handlers/clases/dudas.js"
 import { muroHandler } from "./handlers/clases/muro.js"
 import { recursosHandler } from "./handlers/clases/recursos.js"
 import { erroresDeEnrutamiento, manejoDeErrores } from "./handlers/errores.js"
+import { forosHandler } from "./handlers/foros.js"
 import { saludHandler } from "./handlers/salud.js"
 import { categoriasHandler } from "./handlers/tareas/categorias.js"
 import { entregasHandler } from "./handlers/tareas/entregas.js"
@@ -91,6 +92,7 @@ export const construirApp = async ({
   await app.register(entregasHandler, { prefix: "/api", almacen: almacenDeLaApp })
   await app.register(hiloPrivadoHandler, { prefix: "/api" })
   await app.register(calificacionesHandler, { prefix: "/api", almacen: almacenDeLaApp })
+  await app.register(forosHandler, { prefix: "/api", almacen: almacenDeLaApp })
   await app.register(adminHandler, {
     prefix: "/api/admin",
     limiteDiarioInvitaciones: env.INVITACIONES_LIMITE_DIARIO,

@@ -13,7 +13,7 @@ import {
 import { formatearPorcentaje, formatearPuntos } from "@/lib/format"
 
 import { TEXTOS_GRADEBOOK } from "../data"
-import { enlaceAEntregaDeAlumno, textoDeCelda, textoDeMotivos } from "../lib"
+import { enlaceAEntregaDeAlumno, enlaceAParticipante, textoDeCelda, textoDeMotivos } from "../lib"
 import type { GradebookRespuesta } from "../types"
 
 interface TablaDelGradebookProps {
@@ -70,7 +70,11 @@ export function TablaDelGradebook({ tareas, alumnos }: TablaDelGradebookProps) {
               return (
                 <TableCell key={tarea.id} className="text-right tabular-nums">
                   <Link
-                    to={enlaceAEntregaDeAlumno(tarea.id, fila.alumno.id)}
+                    to={
+                      tarea.tipo === "foro"
+                        ? enlaceAParticipante(tarea.id, fila.alumno.id)
+                        : enlaceAEntregaDeAlumno(tarea.id, fila.alumno.id)
+                    }
                     relative="path"
                     className="text-link underline-offset-4 hover:underline"
                   >

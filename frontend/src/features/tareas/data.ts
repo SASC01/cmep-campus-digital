@@ -194,6 +194,109 @@ export const TRADUCCION_DE_ERRORES_TAREAS = {
   },
 } satisfies TraduccionDeErrores
 
+// FORO-01c2 (§E7.3 "Frontend", punto 6; §D-2.4): la traducción de errores del foro, del mismo contrato
+// que la de las tareas, con sus textos fijos y sus ids. Los tres códigos nuevos del foro ya vienen en
+// español del servidor.
+export const MENSAJES_ERROR_FORO = {
+  foroNoEncontrado: "Ese foro ya no existe.",
+  participacionNoEncontrada: "Esa participación ya no existe.",
+} as const
+
+export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR_DEL_FORO: readonly string[] = [
+  ...CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
+  "PARTICIPACION_YA_PUBLICADA",
+  "PARTICIPACION_CALIFICADA",
+  "FORO_CERRADO",
+]
+
+export const TRADUCCION_DE_ERRORES_FORO = {
+  generico: MENSAJES_ERROR_TAREAS.generico,
+  mensajesPorCodigo: {
+    ...MENSAJES_POR_CODIGO_DE_TAREAS,
+    TAREA_NO_ENCONTRADA: MENSAJES_ERROR_FORO.foroNoEncontrado,
+    PARTICIPACION_NO_ENCONTRADA: MENSAJES_ERROR_FORO.participacionNoEncontrada,
+  },
+  codigosConMensajeDelServidor: CODIGOS_CON_MENSAJE_DEL_SERVIDOR_DEL_FORO,
+  textosPorCampo: {
+    claseId: MENSAJES_ERROR_TAREAS.sinAccesoALaClase,
+    foroId: MENSAJES_ERROR_FORO.foroNoEncontrado,
+    alumnoId: MENSAJES_ERROR_TAREAS.alumnoNoEncontrado,
+    participacionId: MENSAJES_ERROR_FORO.participacionNoEncontrada,
+  },
+} satisfies TraduccionDeErrores
+
+// Los campos con nombre que pinta el formulario del foro (§D-8.3): los de la tarea sin "Cómo se
+// entrega"; un VALIDACION de requiereAdjuntos o de version cuenta como no pintado (un aviso, FORO-1C08).
+export const CAMPOS_DEL_FORMULARIO_DEL_FORO: readonly string[] = CAMPOS_DEL_FORMULARIO.filter(
+  (campo) => campo !== "requiereAdjuntos",
+)
+
+// Los errores que reemplazan la vista de un foro (como CODIGOS_QUE_REEMPLAZAN_LA_VISTA de la tarea): el
+// foro o el alumno ya no existen, o se perdió el acceso; un VALIDACION de uno de esos ids dice lo mismo.
+export const CODIGOS_QUE_REEMPLAZAN_LA_VISTA_DEL_FORO: readonly string[] = [
+  "TAREA_NO_ENCONTRADA",
+  "SIN_ACCESO_A_LA_CLASE",
+  "ALUMNO_NO_ENCONTRADO",
+]
+// Los prefijos claseId:, foroId: y alumnoId: de un VALIDACION, como expresión: el mensaje del servidor
+// solo se lee con exec, test o startsWith sobre la lista de la tarea (lib/errores-ch3-r1.ataque, O-05).
+export const PREFIJOS_QUE_REEMPLAZAN_LA_VISTA_DEL_FORO = /^(?:claseId|foroId|alumnoId):/
+
+// FORO-01c2 (§D-8.3, §D-9): los textos del formulario del foro. Lo que no cambia (los campos comunes, la
+// rúbrica, "Guardar cambios", "Cancelar" y "Cambios guardados") es el de la tarea.
+export const TEXTOS_FORMULARIO_FORO = {
+  volverAForo: "Volver a Foro",
+  tituloCrear: "Nuevo foro",
+  tituloEditar: "Editar foro",
+  campoInstrucciones: "Planteamiento",
+  grupoTardias: "Participaciones después de la fecha límite",
+  publicar: "Publicar foro",
+  avisoPublicado: "Foro publicado",
+  // Sin texto en §D-9: los de la tarea con el foro (desviación declarada en el resumen de 01c2).
+  avisoRecargaFallida: "No pudimos actualizar el foro. Puedes seguir editando; revisa tu conexión.",
+  avisoRecargaFallidaDelServidor:
+    "No pudimos actualizar el foro. Puedes seguir editando; inténtalo de nuevo en un momento.",
+} as const
+
+// FORO-01c2 (§D-8.3): lo que cambia en FormularioTarea según el tipo de actividad. Sin `tipo`, el de la
+// tarea, igual que hoy.
+export const TEXTOS_FORMULARIO_POR_TIPO = {
+  tarea: {
+    tituloCrear: TEXTOS_FORMULARIO_TAREA.tituloCrear,
+    tituloEditar: TEXTOS_FORMULARIO_TAREA.tituloEditar,
+    campoInstrucciones: TEXTOS_FORMULARIO_TAREA.campoInstrucciones,
+    grupoTardias: TEXTOS_FORMULARIO_TAREA.grupoEntregasTardias,
+    publicar: TEXTOS_FORMULARIO_TAREA.publicar,
+  },
+  foro: {
+    tituloCrear: TEXTOS_FORMULARIO_FORO.tituloCrear,
+    tituloEditar: TEXTOS_FORMULARIO_FORO.tituloEditar,
+    campoInstrucciones: TEXTOS_FORMULARIO_FORO.campoInstrucciones,
+    grupoTardias: TEXTOS_FORMULARIO_FORO.grupoTardias,
+    publicar: TEXTOS_FORMULARIO_FORO.publicar,
+  },
+} as const
+
+// FORO-01c2 (§D-8.3, §D-9): el detalle del foro y su borrado.
+export const TEXTOS_DETALLE_FORO = {
+  avisoRecargaFallida: "No pudimos actualizar el foro. Mostramos la última versión que tenemos.",
+  insignia: "Foro",
+  planteamiento: "Planteamiento",
+  tardias: "Participaciones después de la fecha límite",
+  aceptaTardias: "Se aceptan participaciones con retraso",
+  noAceptaTardias: "No se aceptan participaciones después de la fecha límite",
+  editar: "Editar foro",
+  borrar: "Borrar foro",
+  confirmarBorrar: "Se borrará con su rúbrica, sus adjuntos y todas sus participaciones.",
+  siBorrar: "Sí, borrar foro",
+  borrarConEntregas: "Borrar con las participaciones",
+  avisoBorrado: "Foro borrado",
+  // Sin texto en §D-9: el de la tarea con el foro (desviación declarada en el resumen de 01c2).
+  sinPermisoParaEditar: "No puedes editar este foro.",
+  noExiste: MENSAJES_ERROR_FORO.foroNoEncontrado,
+  cargando: "Cargando el foro…",
+} as const
+
 // CALIFICACIONES-01c (§D-12.2; Enmienda 1, N-04): los 409 de calificar dicen que lo que se vio ya no
 // es lo de ahora. Avisan con el mensaje del servidor, la vista recarga una sola vez y el panel se
 // reinicia con lo actual.
@@ -369,9 +472,223 @@ export const PREFIJOS_QUE_REEMPLAZAN_LA_VISTA: readonly string[] = [
   "alumnoId:",
 ]
 
+// FORO-01c2 (§D-8.6, T-04 de CLASES-03d; §E7.3 "Frontend", punto 8 b): los 409 de guardar que dicen que
+// la actividad en caché ya no es la del servidor. El gancho la deja vieja sin pedirla: con la vista
+// montada la recarga la hace la vista (§7.21); desmontada, o con la clase ya archivada, volver a abrir la
+// edición la pide.
+export const CODIGOS_QUE_DEJAN_VIEJA_LA_ACTIVIDAD: readonly string[] = [
+  "TAREA_MODIFICADA",
+  "TAREA_CON_CALIFICACIONES",
+]
+
 export const CODIGOS_QUE_RENUEVAN_LA_TAREA: readonly string[] = [
   "TAREA_NO_ENCONTRADA",
   "EDICION_NO_PERMITIDA",
   "BORRADO_NO_PERMITIDO",
   "SIN_ACCESO_A_LA_CLASE",
 ]
+
+// FORO-01c2 (§D-8.3): lo que cambia en AccionesDeLaTarea según el tipo de actividad: sus textos, el
+// segmento de su ruta y la sección a la que se vuelve al borrar.
+export const TEXTOS_ACCIONES_POR_TIPO = {
+  tarea: {
+    segmento: "tareas",
+    seccionTrasBorrar: "trabajo",
+    editar: TEXTOS_DETALLE_TAREA.editar,
+    borrar: TEXTOS_DETALLE_TAREA.borrar,
+    confirmarBorrar: TEXTOS_DETALLE_TAREA.confirmarBorrar,
+    siBorrar: TEXTOS_DETALLE_TAREA.siBorrar,
+    borrarConEntregas: TEXTOS_DETALLE_TAREA.borrarConEntregas,
+    cancelar: TEXTOS_DETALLE_TAREA.cancelar,
+  },
+  foro: {
+    segmento: "foros",
+    seccionTrasBorrar: "foro",
+    editar: TEXTOS_DETALLE_FORO.editar,
+    borrar: TEXTOS_DETALLE_FORO.borrar,
+    confirmarBorrar: TEXTOS_DETALLE_FORO.confirmarBorrar,
+    siBorrar: TEXTOS_DETALLE_FORO.siBorrar,
+    borrarConEntregas: TEXTOS_DETALLE_FORO.borrarConEntregas,
+    cancelar: TEXTOS_DETALLE_TAREA.cancelar,
+  },
+} as const
+
+// FORO-01c2 (§D-8.3): la política de tardías en "Detalles" del foro (la de la tarea, sin prop).
+export const POLITICA_DEL_FORO = {
+  titulo: TEXTOS_DETALLE_FORO.tardias,
+  acepta: TEXTOS_DETALLE_FORO.aceptaTardias,
+  noAcepta: TEXTOS_DETALLE_FORO.noAceptaTardias,
+} as const
+
+// FORO-01d (§D-8.4, §D-9, §D-11): participar, replicar y borrar en un foro. Las principales y las
+// réplicas se piden de 20 en 20, como el servidor.
+export const LIMITE_DE_PARTICIPACIONES = 20
+export const LIMITE_DE_REPLICAS = 20
+
+export const TEXTOS_PARTICIPACIONES = {
+  titulo: "Participaciones",
+  frase: "Lo que publiques aquí lo ve toda la clase.",
+  campo: "Escribe tu participación",
+  publicar: "Publicar participación",
+  avisoPublicada: "Participación publicada",
+  notaDeRetraso: "La fecha límite ya pasó: tu participación quedará marcada con retraso.",
+  cerrado: "La fecha límite ya pasó y este foro ya no recibe participaciones.",
+  tuya: "Tuya",
+  conRetraso: "Con retraso",
+  verReplicas: (n: number) => `Ver réplicas (${n})`,
+  replicar: "Replicar",
+  ocultarReplicas: "Ocultar réplicas",
+  replicas: "Réplicas",
+  campoReplica: "Escribe tu réplica",
+  publicarReplica: "Publicar réplica",
+  verMas: "Ver más participaciones",
+  verMasReplicas: "Ver más réplicas",
+  vacio: "Aún no hay participaciones en este foro.",
+  cambioMientrasLasVeias:
+    "Las participaciones cambiaron mientras las veías. Vuelve a abrir el foro para verlas completas.",
+  replicasCambiaron:
+    "Las réplicas cambiaron mientras las veías. Vuelve a abrirlas para verlas completas.",
+  notaDelAdmin: "La administración puede leer este foro, pero no participar en él.",
+  recargaFallida:
+    "No pudimos actualizar las participaciones. Mostramos la última versión que tenemos.",
+  // M-12 (decisión del humano, 2026-11-16, «Texto propio»): la recarga de fondo fallida de las réplicas.
+  recargaFallidaReplicas:
+    "No pudimos actualizar las réplicas. Mostramos la última versión que tenemos.",
+  // N-37 (decisión del humano, 2026-11-16): la primera carga fallida de cada bloque.
+  errorAlCargar: "No pudimos cargar las participaciones.",
+  errorAlCargarReplicas: "No pudimos cargar las réplicas.",
+  errorAlPublicar: "No pudimos publicar tu participación. Inténtalo de nuevo.",
+  errorAlPublicarReplica: "No pudimos publicar tu réplica. Inténtalo de nuevo.",
+  // §D-11 (E3-3): borrar, solo el admin.
+  borrar: "Borrar",
+  // Sin texto en §D-9: el nombre accesible de cada «Borrar» dice de quién es (desviación declarada).
+  borrarParticipacionDe: (nombre: string) => `participación de ${nombre}`,
+  borrarReplicaDe: (nombre: string) => `réplica de ${nombre}`,
+  confirmarBorrarParticipacion:
+    "Se borrará con sus réplicas. Si el alumno ya tiene calificación, se conserva.",
+  confirmarBorrarReplica: "Se borrará esta réplica.",
+  siBorrarParticipacion: "Sí, borrar participación",
+  siBorrarReplica: "Sí, borrar réplica",
+  cancelar: "Cancelar",
+  avisoParticipacionBorrada: "Participación borrada",
+  avisoReplicaBorrada: "Réplica borrada",
+} as const
+
+// FORO-01d (§D-8.4, E1-11): «Tu participación», del alumno.
+export const TEXTOS_MI_PARTICIPACION = {
+  titulo: "Tu participación",
+  todaviaNo: "Todavía no participas.",
+  participaste: (fecha: string, hora: string) => `Participaste el ${fecha} a las ${hora}`,
+  conRetraso: " con retraso",
+  errorAlCargar: "No pudimos cargar tu participación.",
+  recargaFallida:
+    "No pudimos actualizar tu participación. Mostramos la última versión que tenemos.",
+} as const
+
+// §D-8.4: los 409 de publicar dicen que «Tu participación» o la lista que se ven ya no son las de ahora.
+export const CODIGOS_DE_CONFLICTO_DE_PARTICIPACION: readonly string[] = [
+  "PARTICIPACION_YA_PUBLICADA",
+  "PARTICIPACION_CALIFICADA",
+  "FORO_CERRADO",
+]
+
+// FORO-01e (§D-8.5, §D-9 con E1-10 y E1-11, §E13.7): «Participantes» y la participación de un alumno, para
+// sus maestros y el admin. Se piden de 20 en 20, como las entregas de una tarea.
+export const LIMITE_DE_PARTICIPANTES = 20
+
+export const TEXTOS_PARTICIPANTES = {
+  panel: "Participantes",
+  verParticipantes: "Ver participantes",
+  titulo: "Participantes",
+  volverAlForo: "Volver al foro",
+  conteo: (participaron: number, total: number) =>
+    total === 1
+      ? `Participaron ${participaron} de 1 alumno.`
+      : `Participaron ${participaron} de ${total} alumnos.`,
+  cargando: "Cargando las participaciones…",
+  vacio: "Aún no hay alumnos en esta clase.",
+  verMas: "Ver más alumnos",
+  cambioMientrasLaVeias:
+    "La lista de alumnos cambió mientras la veías. Vuelve a abrir Participantes para verla completa.",
+  // DH-20 (a), decisión del humano (2026-11-17).
+  recargaFallida:
+    "No pudimos actualizar la lista de alumnos. Mostramos la última versión que tenemos.",
+} as const
+
+// Las columnas y el enlace de la tabla de entregas con los textos del foro (TablaDeEntregas, por props).
+export const TEXTOS_DE_LA_TABLA_DE_PARTICIPANTES = {
+  columnas: {
+    alumno: "Alumno",
+    estado: "Estado",
+    entregada: "Participó",
+    acciones: "Acciones",
+  },
+  verEntrega: "Ver participación",
+  sinFecha: "—",
+} as const
+
+export const TEXTOS_PARTICIPANTE = {
+  volver: "Volver a los participantes",
+  // DH-22 (decisión del humano, 2026-11-17): la carga de la vista y la lista vacía de lo que escribió.
+  cargando: "Cargando la participación…",
+  sinParticipaciones: "Aún no hay participaciones de este alumno.",
+  participo: (fecha: string, hora: string) => `Participó el ${fecha} a las ${hora}`,
+  todaviaNoParticipa: "Todavía no participa.",
+  recargaFallida:
+    "No pudimos actualizar la participación de este alumno. Mostramos la última versión que tenemos.",
+  susParticipaciones: "Sus participaciones",
+  enRespuestaA: "En respuesta a",
+  verMas: "Ver más participaciones",
+  cambioMientrasLasVeias:
+    "Las participaciones de este alumno cambiaron mientras las veías. Vuelve a abrir su participación para verlas completas.",
+  // DH-19 (4), decisión del humano (2026-11-17).
+  errorAlCargar: "No pudimos cargar las participaciones de este alumno.",
+  recargaFallidaDeLoQueEscribio:
+    "No pudimos actualizar las participaciones de este alumno. Mostramos la última versión que tenemos.",
+} as const
+
+// Los comentarios de la devolución: los de un alumno para sus maestros y el admin, y «Comentarios de tu
+// maestro» para el alumno (§D-9, E1-11; DH-19 (5) y (6)).
+export const TEXTOS_DEVOLUCIONES = {
+  deLaParticipante: {
+    titulo: "Comentarios de la devolución",
+    vacio: "Aún no hay comentarios de la devolución.",
+    errorAlCargar: "No pudimos cargar los comentarios de la devolución.",
+    recargaFallida:
+      "No pudimos actualizar los comentarios de la devolución. Mostramos la última versión que tenemos.",
+    cambioMientrasLosVeias:
+      "Los comentarios de la devolución cambiaron mientras los veías. Vuelve a abrir su participación para verlos completos.",
+  },
+  deTuMaestro: {
+    titulo: "Comentarios de tu maestro",
+    vacio: null,
+    errorAlCargar: "No pudimos cargar los comentarios de tu maestro.",
+    recargaFallida:
+      "No pudimos actualizar los comentarios de tu maestro. Mostramos la última versión que tenemos.",
+    cambioMientrasLosVeias:
+      "Los comentarios de tu maestro cambiaron mientras los veías. Vuelve a abrir el foro para verlos completos.",
+  },
+  verMas: "Ver más comentarios",
+} as const
+
+// El panel de calificación según la actividad (DH-19 (1) y (2)): sin actividad, los textos de la tarea.
+export const TEXTOS_DEL_PANEL_POR_TIPO = {
+  tarea: {
+    ayudaComentario: TEXTOS_CALIFICAR.ayudaComentario,
+    podrasCalificar: TEXTOS_CALIFICAR.podrasCalificar,
+    notaSinEntrega: TEXTOS_CALIFICAR.notaSinEntrega,
+    avisoRecargaFallida: TEXTOS_CALIFICAR.avisoRecargaFallida,
+  },
+  foro: {
+    ayudaComentario: "Se publica en los comentarios de la devolución.",
+    podrasCalificar: "Podrás calificar cuando el alumno participe o cuando se cierre el foro.",
+    notaSinEntrega: "Este alumno no participó y el foro ya está cerrado.",
+    avisoRecargaFallida:
+      "No pudimos cargar la participación actual. Revisa tu conexión e inténtalo de nuevo.",
+  },
+} as const
+
+// «Tu participación» calificada sin haber participado (DH-19 (3)).
+export const TEXTOS_MI_CALIFICACION_DEL_FORO = {
+  sinParticipar: "No participaste en este foro y ya está calificado.",
+} as const

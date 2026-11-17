@@ -7,14 +7,17 @@ import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Card, CardContent } from "@/components/ui/card"
 
-import { TEXTOS_DETALLE_TAREA } from "../data"
-import { useBorrarTarea } from "../hooks"
-import { esTareaConEntregas, mensajeDeErrorTareas } from "../lib"
-import type { TareaDetalle } from "../types"
+import { TEXTOS_ACCIONES_POR_TIPO } from "../data"
+import { useBorrarForo, useBorrarTarea } from "../hooks"
+import { esTareaConEntregas, mensajeDelFormulario } from "../lib"
+import type { ActividadDetalle, TipoDeActividad } from "../types"
 
 interface AccionesDeLaTareaProps {
   claseId: string
-  tarea: TareaDetalle
+  tarea: ActividadDetalle
+  // FORO-01c2 (§D-8.3): "foro" usa los textos, la ruta del borrado y la sección a la que se vuelve del
+  // foro; sin `tipo`, la tarea, igual que hoy.
+  tipo?: TipoDeActividad
   // La ruta base de la clase en la perspectiva actual; al borrar se vuelve a su "Trabajo de clase".
   base: string
   // ENTREGAS-01e (§D-10.5.4): true solo en la perspectiva de admin. La perspectiva decide qué se
@@ -34,11 +37,15 @@ interface AccionesDeLaTareaProps {
 export function AccionesDeLaTarea({
   claseId,
   tarea,
+  tipo = "tarea",
   base,
   puedeConfirmarEntregas,
 }: AccionesDeLaTareaProps) {
   const navigate = useNavigate()
-  const borrar = useBorrarTarea(claseId, tarea.id)
+  const borrarTarea = useBorrarTarea(claseId, tarea.id)
+  const borrarForo = useBorrarForo(claseId, tarea.id)
+  const borrar = tipo === "foro" ? borrarForo : borrarTarea
+  const textos = TEXTOS_ACCIONES_POR_TIPO[tipo]
   const [confirmando, setConfirmando] = useState(false)
   // El mensaje del 409 TAREA_CON_ENTREGAS (con el conteo, del servidor); null en el primer paso.
   const [conEntregas, setConEntregas] = useState<string | null>(null)
@@ -79,16 +86,16 @@ export function AccionesDeLaTarea({
     if (borrandoRef.current) return
     borrandoRef.current = true
     borrar.mutate(confirmarEntregas, {
-      onSuccess: () => navigate(`${base}/trabajo`),
+      onSuccess: () => navigate(`${base}/${textos.seccionTrasBorrar}`),
       onError: (error) => {
         if (!esTareaConEntregas(error)) return
         // T-02 y T-03 de 01d1: la confirmación que lanzó el borrado ya no es esta; no se abre el segundo
         // paso y el mensaje del servidor se avisa, porque no hay dónde pintarlo.
         if (!sigueVigente(generacion)) {
-          toast.error(mensajeDeErrorTareas(error))
+          toast.error(mensajeDelFormulario(tipo, error))
           return
         }
-        setConEntregas(mensajeDeErrorTareas(error))
+        setConEntregas(mensajeDelFormulario(tipo, error))
       },
       onSettled: () => {
         borrandoRef.current = false
@@ -108,10 +115,10 @@ export function AccionesDeLaTarea({
         <div className="flex flex-wrap items-center gap-2">
           {tarea.puedeEditar && (
             <Link
-              to={`${base}/tareas/${tarea.id}/editar`}
+              to={`${base}/${textos.segmento}/${tarea.id}/editar`}
               className={buttonVariants({ variant: "outline" })}
             >
-              {TEXTOS_DETALLE_TAREA.editar}
+              {textos.editar}
             </Link>
           )}
           {tarea.puedeBorrar && !confirmando && (
@@ -121,16 +128,14 @@ export function AccionesDeLaTarea({
               variant="ghost"
               onClick={() => setConfirmando(true)}
             >
-              {TEXTOS_DETALLE_TAREA.borrar}
+              {textos.borrar}
             </Button>
           )}
         </div>
 
         {tarea.puedeBorrar && confirmando && (
           <div className="flex flex-col gap-2">
-            {conEntregas === null && (
-              <p className="text-small">{TEXTOS_DETALLE_TAREA.confirmarBorrar}</p>
-            )}
+            {conEntregas === null && <p className="text-small">{textos.confirmarBorrar}</p>}
             {conEntregas !== null && (
               <p role="alert" className="text-small">
                 {conEntregas}
@@ -144,7 +149,7 @@ export function AccionesDeLaTarea({
                   onClick={() => handleBorrar(false)}
                   enEspera={borrar.isPending}
                 >
-                  {TEXTOS_DETALLE_TAREA.siBorrar}
+                  {textos.siBorrar}
                 </Button>
               )}
               {conEntregas !== null && puedeConfirmarEntregas && (
@@ -154,11 +159,11 @@ export function AccionesDeLaTarea({
                   onClick={() => handleBorrar(true)}
                   enEspera={borrar.isPending}
                 >
-                  {TEXTOS_DETALLE_TAREA.borrarConEntregas}
+                  {textos.borrarConEntregas}
                 </Button>
               )}
               <Button ref={cancelarBtnRef} type="button" variant="outline" onClick={handleCancelar}>
-                {TEXTOS_DETALLE_TAREA.cancelar}
+                {textos.cancelar}
               </Button>
             </div>
           </div>

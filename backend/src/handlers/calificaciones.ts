@@ -35,13 +35,16 @@ import { validarCuerpo, validarParametros } from "./validacion.js"
 const tareaNoEncontrada = (): AppError =>
   new AppError("TAREA_NO_ENCONTRADA", "Esa tarea ya no existe.", 404)
 
-// Una tarea del gradebook o de "Mis calificaciones", con la fecha límite en ISO 8601.
-const columnaParaResponder = (tarea: ColumnaDelGradebookDb) => ({
+// Una tarea del gradebook o de "Mis calificaciones", con la fecha límite en ISO 8601. FORO-01b (§D-6,
+// DH-09 a): con conTipo, además el tipo de la actividad (tarea o foro); sin él, la respuesta de
+// siempre. La exportación nunca lo pide.
+const columnaParaResponder = (tarea: ColumnaDelGradebookDb, conTipo = false) => ({
   id: tarea.id,
   titulo: tarea.titulo,
   fechaLimite: tarea.fechaLimite.toISOString(),
   puntos: tarea.puntos,
   categoria: tarea.categoria,
+  ...(conTipo ? { tipo: tarea.tipo } : {}),
 })
 
 // Rutas de CALIFICACIONES-01 (§D-0.1). En 01b, las dos lecturas: el gradebook y "Mis calificaciones".
@@ -105,7 +108,7 @@ export const calificacionesHandler: FastifyPluginAsync<{ almacen: Almacen | null
     }),
     async (request, reply) => {
       const claseId = claseDe(request).id.toLowerCase()
-      const { cursor, limite, cursorTareas, limiteTareas } = validarParametros(
+      const { cursor, limite, cursorTareas, limiteTareas, conTipo } = validarParametros(
         gradebookQuerySchema,
         request.query,
       )
@@ -120,7 +123,7 @@ export const calificacionesHandler: FastifyPluginAsync<{ almacen: Almacen | null
       return reply.send(
         gradebookRespuestaSchema.parse({
           ...gradebook,
-          tareas: gradebook.tareas.map(columnaParaResponder),
+          tareas: gradebook.tareas.map((tarea) => columnaParaResponder(tarea, conTipo === "si")),
         }),
       )
     },
@@ -137,7 +140,7 @@ export const calificacionesHandler: FastifyPluginAsync<{ almacen: Almacen | null
     }),
     async (request, reply) => {
       const claseId = claseDe(request).id.toLowerCase()
-      const { estado, cursor, limite } = validarParametros(
+      const { estado, cursor, limite, conTipo } = validarParametros(
         misCalificacionesQuerySchema,
         request.query,
       )
@@ -153,7 +156,7 @@ export const calificacionesHandler: FastifyPluginAsync<{ almacen: Almacen | null
         misCalificacionesRespuestaSchema.parse({
           ...mis,
           tareas: mis.tareas.map((tarea) => ({
-            ...columnaParaResponder(tarea),
+            ...columnaParaResponder(tarea, conTipo === "si"),
             entrega: tarea.entrega,
           })),
         }),
@@ -188,7 +191,7 @@ export const calificacionesHandler: FastifyPluginAsync<{ almacen: Almacen | null
       return reply.send(
         exportacionDeCalificacionesRespuestaSchema.parse({
           ...exportacion,
-          tareas: exportacion.tareas.map(columnaParaResponder),
+          tareas: exportacion.tareas.map((tarea) => columnaParaResponder(tarea)),
         }),
       )
     },

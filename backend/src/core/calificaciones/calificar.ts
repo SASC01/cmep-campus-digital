@@ -1,5 +1,7 @@
+import { TEXTOS_POR_ACTIVIDAD, type Actividad } from "../actividades.js"
 import { esTarde, type EstadoEntrega } from "../entregas/entregas.js"
 import { AppError } from "../errores.js"
+import { reglaDeParticipacion } from "../foros/participacion.js"
 
 // CALIFICACIONES-01a (§D-2.1). Reglas puras de calificar una entrega. El adaptador las llama dentro de
 // la transacción, con la tarea bloqueada (FOR SHARE) y la fila de la entrega bloqueada; ninguna
@@ -23,33 +25,21 @@ export interface CalificacionDecidida {
   puntajes: { criterioId: string; puntos: number }[]
 }
 
-// §D-10.
-export const entregaModificada = (): AppError =>
-  new AppError(
-    "ENTREGA_MODIFICADA",
-    "La entrega cambió mientras la calificabas: el alumno la anuló o la volvió a entregar, u otra persona la calificó. No se guardó tu calificación; revisa la entrega actual.",
-    409,
-  )
+// §D-10. FORO-01a (§D-2.4): con actividad "foro", el mismo código con el texto del foro.
+export const entregaModificada = (actividad: Actividad = "tarea"): AppError =>
+  new AppError("ENTREGA_MODIFICADA", TEXTOS_POR_ACTIVIDAD[actividad].entregaModificada, 409)
 
-export const rubricaModificada = (): AppError =>
-  new AppError(
-    "RUBRICA_MODIFICADA",
-    "La rúbrica o los puntos de la tarea cambiaron mientras calificabas. No se guardó tu calificación; vuelve a calificar con la versión actual.",
-    409,
-  )
+export const rubricaModificada = (actividad: Actividad = "tarea"): AppError =>
+  new AppError("RUBRICA_MODIFICADA", TEXTOS_POR_ACTIVIDAD[actividad].rubricaModificada, 409)
 
 // P-03 (c′): el texto habla del cierre de la entrega, no solo de la fecha límite.
-export const entregaNoCalificable = (): AppError =>
-  new AppError(
-    "ENTREGA_NO_CALIFICABLE",
-    "Este alumno todavía puede entregar. Podrás calificarlo cuando entregue o cuando se cierre la entrega.",
-    409,
-  )
+export const entregaNoCalificable = (actividad: Actividad = "tarea"): AppError =>
+  new AppError("ENTREGA_NO_CALIFICABLE", TEXTOS_POR_ACTIVIDAD[actividad].entregaNoCalificable, 409)
 
-export const tareaConCalificaciones = (): AppError =>
+export const tareaConCalificaciones = (actividad: Actividad = "tarea"): AppError =>
   new AppError(
     "TAREA_CON_CALIFICACIONES",
-    "Esta tarea ya tiene calificaciones: no puedes cambiar sus puntos ni su rúbrica. Lo demás sí se puede editar.",
+    TEXTOS_POR_ACTIVIDAD[actividad].tareaConCalificaciones,
     409,
   )
 
@@ -119,15 +109,19 @@ export const decidirCalificacion = ({
   puntosVistos,
   puntajes,
   calificacionDirecta,
+  actividad = "tarea",
 }: {
   criterios: readonly CriterioParaCalificar[]
   puntosDeLaTarea: number
   puntosVistos: number
   puntajes: readonly PuntajeEnviado[]
   calificacionDirecta: number | null
+  actividad?: Actividad
 }): CalificacionDecidida => {
-  if (puntosVistos !== puntosDeLaTarea) throw rubricaModificada()
-  if (!formaCorresponde({ criterios, puntajes, calificacionDirecta })) throw rubricaModificada()
+  if (puntosVistos !== puntosDeLaTarea) throw rubricaModificada(actividad)
+  if (!formaCorresponde({ criterios, puntajes, calificacionDirecta })) {
+    throw rubricaModificada(actividad)
+  }
 
   if (criterios.length === 0) {
     if (calificacionDirecta === null) throw formaInalcanzable()
@@ -168,16 +162,31 @@ export const decidirCalificacion = ({
 // cerrada: la fecha límite vencida y la tarea que no acepta tardías (la misma regla que entregaCerrada
 // de core/entregas, que además pide requiereAdjuntos, que el cierre no mira). Si no,
 // ENTREGA_NO_CALIFICABLE.
+// FORO-01a (E1-1, M-01): en un foro, "la participación ya se cerró" lo decide la regla del foro, no
+// una copia de ella: así nunca se califica a quien todavía puede participar, y siempre se puede
+// calificar a quien ya no puede, con cualquier regla que elija el cliente (DH-02).
 export const exigirEntregaCalificable = ({
   estado,
   tarea,
   ahora,
+  actividad = "tarea",
 }: {
   estado: EstadoEntrega
   tarea: { fechaLimite: Date; aceptaTardias: boolean }
   ahora: Date
+  actividad?: Actividad
 }): void => {
   if (estado !== "asignado") return
+  if (actividad === "foro") {
+    const regla = reglaDeParticipacion({
+      tipo: "principal",
+      rolDelAutor: "estudiante",
+      foro: tarea,
+      ahora,
+    })
+    if (!regla.abierta) return
+    throw entregaNoCalificable(actividad)
+  }
   if (!tarea.aceptaTardias && esTarde(tarea.fechaLimite, ahora)) return
   throw entregaNoCalificable()
 }
@@ -192,12 +201,14 @@ export const exigirRubricaCongelada = ({
   puntosNuevos,
   rubricaActual,
   rubricaNueva,
+  actividad = "tarea",
 }: {
   calificadas: number
   puntosActuales: number
   puntosNuevos: number
   rubricaActual: readonly { criterio: string; puntosMax: number }[]
   rubricaNueva: readonly { criterio: string; puntosMax: number }[]
+  actividad?: Actividad
 }): { reemplazarRubrica: boolean } => {
   const rubricaIdentica =
     rubricaActual.length === rubricaNueva.length &&
@@ -210,7 +221,7 @@ export const exigirRubricaCongelada = ({
       )
     })
   if (calificadas > 0 && (puntosActuales !== puntosNuevos || !rubricaIdentica)) {
-    throw tareaConCalificaciones()
+    throw tareaConCalificaciones(actividad)
   }
   return { reemplazarRubrica: !rubricaIdentica }
 }

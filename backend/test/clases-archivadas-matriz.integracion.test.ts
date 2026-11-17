@@ -100,6 +100,25 @@ const POLITICAS: Readonly<Record<string, Politica>> = {
   "PUT /api/admin/clases/:claseId": "cerrada",
   "POST /api/admin/clases/:claseId/maestros": "cerrada",
   "DELETE /api/admin/clases/:claseId/maestros/:maestroId": "cerrada",
+  // FORO-01a (§E7.3; §D-3.1): las 16 rutas del foro; lectura las 10 que leen, cerradas las 6 escrituras.
+  [`GET ${C}/foros`]: "lectura",
+  [`GET ${C}/foros/:foroId`]: "lectura",
+  [`GET ${C}/foros/:foroId/mi-participacion`]: "lectura",
+  [`GET ${C}/foros/:foroId/mi-participacion/devoluciones`]: "lectura",
+  [`GET ${C}/foros/:foroId/participaciones`]: "lectura",
+  [`GET ${C}/foros/:foroId/participaciones/:participacionId/replicas`]: "lectura",
+  [`GET ${C}/foros/:foroId/participantes`]: "lectura",
+  [`GET ${C}/foros/:foroId/participantes/:alumnoId`]: "lectura",
+  [`GET ${C}/foros/:foroId/participantes/:alumnoId/participaciones`]: "lectura",
+  [`GET ${C}/foros/:foroId/participantes/:alumnoId/devoluciones`]: "lectura",
+  [`POST ${C}/foros`]: "cerrada",
+  [`PUT ${C}/foros/:foroId`]: "cerrada",
+  [`DELETE ${C}/foros/:foroId`]: "cerrada",
+  [`POST ${C}/foros/:foroId/participaciones`]: "cerrada",
+  [`POST ${C}/foros/:foroId/participaciones/:participacionId/replicas`]: "cerrada",
+  [`PUT ${C}/foros/:foroId/participantes/:alumnoId/calificacion`]: "cerrada",
+  // FORO-01b (§D-11, S-E3-1): borrar una participación o una réplica (solo el admin) queda cerrado en una archivada.
+  [`DELETE ${C}/foros/:foroId/participaciones/:participacionId`]: "cerrada",
 }
 
 // Con los HEAD que Fastify agrega a cada GET (heredan su cadena y su política).

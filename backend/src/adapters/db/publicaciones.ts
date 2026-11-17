@@ -87,6 +87,17 @@ const SELECT_AUTOR = { select: { id: true, nombre: true, rol: true } } as const
 // encuentran anuncios y materiales (una tarea tiene su propia ruta).
 const TIPOS_DEL_MURO = ["anuncio", "material"] as const
 
+// FORO-01a (§D-3.3, §E8.1): la lista sin tipo (la de compatibilidad) trae lo de siempre y nunca un
+// foro, que tiene su propia ruta y que el esquema de respuesta del muro no admite.
+const TIPOS_DE_LA_LISTA = ["anuncio", "material", "tarea"] as const
+
+// El where de la lista ya excluye el foro: si llegara uno, es un error explícito y no un valor
+// inventado (como errorElementoSinTitulo).
+const tipoDeLaLista = (tipo: string): PublicacionDb["tipo"] => {
+  if (tipo === "anuncio" || tipo === "material" || tipo === "tarea") return tipo
+  throw new AppError("ERROR_INTERNO", "La lista del muro trajo un tipo que no admite.", 500)
+}
+
 const SELECT_PUBLICACION = {
   id: true,
   tipo: true,
@@ -164,8 +175,10 @@ export const crearPublicacion = (
     }
     await alGuardar(ejecutorSqlDe(tx))
     // El autor es quien crea: puede borrar lo suyo (core/autoria.ts).
+    // FORO-01a (§E8.1): el tipo sale del parámetro, ya estrecho; la fila trae el enum completo.
     return {
       ...creada,
+      tipo,
       comentarios: 0,
       adjuntos: [...archivos],
       puedeBorrar: puedeBorrar(creada.autor, creada.autor),
@@ -204,7 +217,10 @@ export const listarPublicaciones = (
   enTransaccion(
     ejecutor,
     async (tx) => {
-      const donde = tipo === undefined ? { claseId } : { claseId, tipo, temaId: null }
+      const donde =
+        tipo === undefined
+          ? { claseId, tipo: { in: [...TIPOS_DE_LA_LISTA] } }
+          : { claseId, tipo, temaId: null }
       if (cursor !== undefined) {
         const delCursor = await tx.publicacion.findFirst({
           where: { ...donde, id: cursor },
@@ -256,6 +272,7 @@ export const listarPublicaciones = (
       return {
         publicaciones: pagina.map((fila) => ({
           ...fila,
+          tipo: tipoDeLaLista(fila.tipo),
           comentarios: comentariosPorPublicacion.get(fila.id) ?? 0,
           adjuntos: adjuntosPorPublicacion.get(fila.id) ?? [],
           puedeBorrar:

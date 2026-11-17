@@ -47,9 +47,11 @@ export const rutaDelGradebook = (
   ventana: VentanaDelGradebook,
   limites: LimitesDelGradebook,
 ): string => {
+  // FORO-01e (§D-8.5): con conTipo=si cada columna dice si es una tarea o un foro (su enlace cambia).
   const consulta = new URLSearchParams({
     limite: String(limites.limite),
     limiteTareas: String(limites.limiteTareas),
+    conTipo: "si",
   })
   if (ventana.cursor !== null) consulta.set("cursor", ventana.cursor)
   if (ventana.cursorTareas !== null) consulta.set("cursorTareas", ventana.cursorTareas)
@@ -63,7 +65,7 @@ export const rutaDeMisCalificaciones = (
   cursor: string | undefined,
   limite: number,
 ): string => {
-  const consulta = new URLSearchParams({ estado: filtro, limite: String(limite) })
+  const consulta = new URLSearchParams({ estado: filtro, limite: String(limite), conTipo: "si" })
   if (cursor !== undefined) consulta.set("cursor", cursor)
   return `${rutaDeLaClase(claseId)}/mis-calificaciones?${consulta.toString()}`
 }
@@ -108,6 +110,13 @@ export const enlaceAEntregaDeAlumno = (tareaId: string, alumnoId: string): strin
   `../tareas/${tareaId}/entregas/${alumnoId}`
 
 export const enlaceATarea = (tareaId: string): string => `../tareas/${tareaId}`
+
+// FORO-01e (§D-8.5): la celda de un foro lleva a la participación de ese alumno, y "Mis calificaciones"
+// al foro; relativos a la clase, como los de la tarea. Sin `tipo` en la respuesta, los de la tarea.
+export const enlaceAParticipante = (foroId: string, alumnoId: string): string =>
+  `../foros/${foroId}/participantes/${alumnoId}`
+
+export const enlaceAForo = (foroId: string): string => `../foros/${foroId}`
 
 export const VENTANAS_INICIALES: VentanasDelGradebook = {
   ventana: { cursor: null, cursorTareas: null },

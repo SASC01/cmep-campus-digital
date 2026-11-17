@@ -253,7 +253,7 @@ describe("indicador de las secciones de la clase", () => {
   // CLASES-03 (DH-03, §D-7.2): el indicador toma la posición y el ancho medidos de la opción activa
   // ("Personas" es la quinta del maestro, tras "Recursos" desde 03d y "Dudas" desde 03e). Sigue protegiendo que el indicador siga a la sección activa
   // y que en editar no haya indicador.
-  it("M-T1: en Avisos el indicador va bajo la primera sección, en Personas bajo la quinta y en editar no hay indicador", async () => {
+  it("M-T1: en Avisos el indicador va bajo la primera sección, en Personas bajo la sexta y en editar no hay indicador", async () => {
     stubApi({})
     simularMedidas()
 
@@ -271,7 +271,7 @@ describe("indicador de las secciones de la clase", () => {
     expect(screen.getByRole("link", { name: "Personas" })).toHaveAttribute("aria-current", "page")
     indicadores = indicadoresDe(lista)
     expect(indicadores).toHaveLength(1)
-    await waitFor(() => expect(medidasDelIndicador(indicadores[0])).toEqual(medidasDeLaOpcion(4)))
+    await waitFor(() => expect(medidasDelIndicador(indicadores[0])).toEqual(medidasDeLaOpcion(5)))
     cleanup()
 
     renderMaestro(`/maestro/clases/${CLASE_ID}/editar`)
@@ -311,6 +311,7 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
     ).toEqual([
       "Avisos",
       "Actividades de aprendizaje",
+      "Foro",
       "Recursos",
       "Dudas",
       "Personas",
@@ -339,7 +340,7 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
   })
 
   // CLASES-03 (DH-03; N-47): "Actividades de aprendizaje" es la segunda sección del admin y
-  // "Personas" la quinta (03d suma "Recursos" en la tercera y 03e, "Dudas" en la cuarta); el indicador lleva la posición y el ancho medidos de cada una.
+  // "Personas" la sexta (FORO-01 suma "Foro" en la tercera, y "Recursos" y "Dudas" pasan a la cuarta y la quinta); el indicador lleva la posición y el ancho medidos de cada una.
   it("PR-2C07: el indicador sigue a la sección activa con sus medidas y en «Editar clase» no hay indicador", async () => {
     stubApi({})
     simularMedidas()
@@ -357,7 +358,7 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
     renderLayout(`/admin/clases/${CLASE_ID}/personas`)
     const cuarta = await screen.findByRole("list", { name: "Secciones de la clase" })
     await waitFor(() =>
-      expect(medidasDelIndicador(cuarta.previousElementSibling)).toEqual(medidasDeLaOpcion(4)),
+      expect(medidasDelIndicador(cuarta.previousElementSibling)).toEqual(medidasDeLaOpcion(5)),
     )
     expect(screen.getByRole("link", { name: "Personas" })).toHaveAttribute("aria-current", "page")
     cleanup()
@@ -380,7 +381,7 @@ describe("ClaseLayout: perspectivas (CLASES-02c)", () => {
     )
     expect(
       within(screen.getByRole("list", { name: "Secciones de la clase" })).getAllByRole("link"),
-    ).toHaveLength(6)
+    ).toHaveLength(7)
     expect(fetchMock.mock.calls.some(([entrada]) => String(entrada).includes("/admin/"))).toBe(
       false,
     )
@@ -424,12 +425,13 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
       .getAllByRole("link")
       .map((enlace) => enlace.textContent)
 
-  it("PR-1E05 · seis secciones en las tres perspectivas, con «Actividades de aprendizaje» segunda y «Calificaciones» última", async () => {
+  it("PR-1E05 · siete secciones en las tres perspectivas, con «Actividades de aprendizaje» segunda y «Calificaciones» última", async () => {
     stubApi({})
     renderLayout(`/estudiante/clases/${CLASE_ID}`)
     expect(await nombresDeLasSecciones()).toEqual([
       "Avisos",
       "Actividades de aprendizaje",
+      "Foro",
       "Recursos",
       "Dudas",
       "Personas",
@@ -445,6 +447,7 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
     expect(await nombresDeLasSecciones()).toEqual([
       "Avisos",
       "Actividades de aprendizaje",
+      "Foro",
       "Recursos",
       "Dudas",
       "Personas",
@@ -460,6 +463,7 @@ describe("ClaseLayout: Trabajo de clase (TAREAS-01e)", () => {
     expect(await nombresDeLasSecciones()).toEqual([
       "Avisos",
       "Actividades de aprendizaje",
+      "Foro",
       "Recursos",
       "Dudas",
       "Personas",

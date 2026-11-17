@@ -28,6 +28,7 @@ import { EditarClaseView } from "@/features/clases/editar-clase-view"
 import { DudasView } from "@/features/clases/dudas-view"
 import { DuplicarClaseView } from "@/features/clases/duplicar-clase-view"
 import { EditarRecursoView } from "@/features/clases/editar-recurso-view"
+import { ForosView } from "@/features/clases/foros-view"
 import { InicioEstudianteView } from "@/features/clases/inicio-estudiante-view"
 import { InicioMaestroView } from "@/features/clases/inicio-maestro-view"
 import { MuroView } from "@/features/clases/muro-view"
@@ -35,11 +36,16 @@ import { PersonasView } from "@/features/clases/personas-view"
 import { RecursosView } from "@/features/clases/recursos-view"
 import { TrabajoView } from "@/features/clases/trabajo-view"
 import { DiagnosticoView } from "@/features/diagnostico/diagnostico-view"
+import { CrearForoView } from "@/features/tareas/crear-foro-view"
 import { CrearTareaView } from "@/features/tareas/crear-tarea-view"
 import { DetalleTareaView } from "@/features/tareas/detalle-tarea-view"
+import { EditarForoView } from "@/features/tareas/editar-foro-view"
 import { EditarTareaView } from "@/features/tareas/editar-tarea-view"
 import { EntregaDeAlumnoView } from "@/features/tareas/entrega-de-alumno-view"
 import { EntregasView } from "@/features/tareas/entregas-view"
+import { ForoView } from "@/features/tareas/foro-view"
+import { ParticipanteView } from "@/features/tareas/participante-view"
+import { ParticipantesView } from "@/features/tareas/participantes-view"
 
 import { RequireCambioDeContrasena } from "./require-cambio-de-contrasena"
 import { RequireRol } from "./require-rol"
@@ -93,6 +99,8 @@ export const rutas: RouteObject[] = [
               // `trabajo` se conserva, DH-09), de solo lectura para el alumno.
               { index: true, element: <MuroView /> },
               { path: "trabajo", element: <TrabajoView /> },
+              // FORO-01c1 (§D-8.1): "Foro", la tercera sección, en las tres perspectivas.
+              { path: "foro", element: <ForosView /> },
               // CLASES-03d (§D-7.4): "Recursos", de solo lectura para el alumno (comenta). Editar un
               // recurso no existe en esta rama y cae en `*`.
               { path: "recursos", element: <RecursosView /> },
@@ -106,6 +114,12 @@ export const rutas: RouteObject[] = [
               // cualquier ruta desconocida. `tareas/:id/editar` no existe para el alumno y cae en `*`.
               { path: "tareas/nueva", element: <Navigate to="/login" replace /> },
               { path: "tareas/:tareaId", element: <DetalleTareaView /> },
+              // FORO-01c2 (§D-8.1): el alumno solo ve el foro; "nuevo" no es un foroId (como
+              // `tareas/nueva`) y `foros/:foroId/editar` no existe en esta rama y cae en `*`.
+              { path: "foros/nuevo", element: <Navigate to="/login" replace /> },
+              { path: "foros/:foroId", element: <ForoView /> },
+              // FORO-01e (§E13.14): «Participantes» no es del alumno; lleva al login, como `foros/nuevo`.
+              { path: "foros/:foroId/participantes", element: <Navigate to="/login" replace /> },
             ],
           },
         ],
@@ -129,6 +143,7 @@ export const rutas: RouteObject[] = [
               // TAREAS-01e (§D-11): "Trabajo de clase" y "Categorías de calificación" (no es una sección).
               { path: "trabajo", element: <TrabajoView /> },
               { path: "categorias", element: <CategoriasView /> },
+              { path: "foro", element: <ForosView /> },
               // CLASES-03d (§D-7.4, S-11): "Recursos" y su edición, que deja activa la sección.
               { path: "recursos", element: <RecursosView /> },
               { path: "recursos/:recursoId/editar", element: <EditarRecursoView /> },
@@ -147,6 +162,17 @@ export const rutas: RouteObject[] = [
               {
                 path: "tareas/:tareaId/entregas/:alumnoId",
                 element: <EntregaDeAlumnoView />,
+              },
+              // FORO-01c2 (§D-8.1): crear, ver y editar un foro; ninguna activa una sección (como las de
+              // la tarea) y el literal "nuevo" gana a :foroId.
+              { path: "foros/nuevo", element: <CrearForoView /> },
+              { path: "foros/:foroId", element: <ForoView /> },
+              { path: "foros/:foroId/editar", element: <EditarForoView /> },
+              // FORO-01e (§D-8.1): «Participantes» y la participación de un alumno.
+              { path: "foros/:foroId/participantes", element: <ParticipantesView /> },
+              {
+                path: "foros/:foroId/participantes/:alumnoId",
+                element: <ParticipanteView />,
               },
             ],
           },
@@ -182,6 +208,7 @@ export const rutas: RouteObject[] = [
                   { index: true, element: <MuroView /> },
                   { path: "trabajo", element: <TrabajoView /> },
                   { path: "categorias", element: <CategoriasView /> },
+                  { path: "foro", element: <ForosView /> },
                   { path: "recursos", element: <RecursosView /> },
                   { path: "recursos/:recursoId/editar", element: <EditarRecursoView /> },
                   { path: "dudas", element: <DudasView /> },
@@ -200,6 +227,14 @@ export const rutas: RouteObject[] = [
                   {
                     path: "tareas/:tareaId/entregas/:alumnoId",
                     element: <EntregaDeAlumnoView />,
+                  },
+                  { path: "foros/nuevo", element: <CrearForoView /> },
+                  { path: "foros/:foroId", element: <ForoView /> },
+                  { path: "foros/:foroId/editar", element: <EditarForoView /> },
+                  { path: "foros/:foroId/participantes", element: <ParticipantesView /> },
+                  {
+                    path: "foros/:foroId/participantes/:alumnoId",
+                    element: <ParticipanteView />,
                   },
                 ],
               },

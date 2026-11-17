@@ -379,6 +379,9 @@ describe("ataque CLASES-02c r1: cambiar de sección en la clase del admin", () =
     // aria-current siga a la sección pulsada y que el foco quede en el enlace.
     // CLASES-03e ronda 0 (C-9, §D-R0; §D-7.1): el admin suma «Dudas» entre «Recursos» y «Personas».
     // El recorrido no cambia: sigue entrando por «Personas» y protegiendo lo mismo.
+    // FORO-01c1 ronda 0 (C-18, §E8.2; §D-8.1): el admin suma «Foro» entre «Actividades de aprendizaje»
+    // y «Recursos». El recorrido no cambia: sigue entrando por «Personas» y protegiendo que aria-current
+    // siga a la sección pulsada y que el foco quede en el enlace.
     expect(
       within(secciones)
         .getAllByRole("link")
@@ -386,6 +389,7 @@ describe("ataque CLASES-02c r1: cambiar de sección en la clase del admin", () =
     ).toEqual([
       "Avisos",
       "Actividades de aprendizaje",
+      "Foro",
       "Recursos",
       "Dudas",
       "Personas",

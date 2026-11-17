@@ -711,3 +711,53 @@ rechaza el uso, sin escribir, si la cuenta está inactiva.
 **S-16:** `SELECT_MAESTROS_DE_CLASE` y `maestrosDeFilas` (`clases.ts`), y `listarPersonas`
 (`inscripciones.ts`, con Prisma), leen `activo` del maestro y agregan `cuentaDesactivada: true` solo
 al dado de baja; el campo crudo `activo` nunca sale.
+
+## El foro en `db/foros.ts`, `db/actividades.ts` y el `tipo` de las actividades (FORO-01, §D-3.3, §D-3.4, §D-4 y §D-11)
+
+Un foro es una publicación de tipo `foro` con su fila 1:1 en `tareas` (fecha límite, puntos, rúbrica,
+tardías, categoría, tema y `version`) y una fila de `entregas` por alumno; lo que se escribe en él vive
+en `participaciones_foro` (la principal de cada alumno, con `principal_id` nulo, y las réplicas).
+
+**`esActividadDeTipo` (`db/actividades.ts`):** una sola lectura por la PK de `publicaciones` que dice si
+el id es de esa actividad. Las funciones de `db/tareas.ts` (`leerTarea`, `crearTarea`, `editarTarea` y
+`borrarTarea`) y de `db/entregas.ts` (`existeLaTarea`, `leerEntregaDeAlumno`, `listarEntregas`,
+`listarHiloPrivado` y `calificarEntrega`) reciben `tipo` (por omisión `"tarea"`); `leerMiEntrega`,
+`entregar`, `anularEntrega` y `comentarEnHiloPrivado` solo aceptan una tarea. Así, una ruta de tarea
+nunca acepta un foro, ni al revés. En las escrituras, el tipo se comprueba después del bloqueo de la fila
+de `tareas` y antes de la autoría y de cualquier escritura. No se reexporta en `index.ts`.
+
+**Lecturas (`listarForos`, `leerMiParticipacion`, `listarParticipaciones`, `listarReplicas` y
+`listarParticipacionesDeAlumno`):** en la instantánea única, sin SQL propio y sin consultas en ciclos;
+cada lista comprueba su cursor contra la misma lista. Índices: `publicaciones (clase_id, tipo, …)` para
+la lista de foros; `participaciones_foro (foro_id, principal_id, creado_en, id)` para las principales;
+`(principal_id, creado_en, id)` para las réplicas y la cascada; `(foro_id, autor_id, creado_en, id)` y
+el único parcial `participaciones_foro_una_principal` para lo de un alumno.
+
+**Orden de bloqueo:** el de las entregas. Primero la fila de `tareas` del foro (`bloquearTareaParaEntregar`,
+de `db/entregas.ts`), después la de `entregas` (`bloquearEntrega`) y al final `participaciones_foro`.
+
+- Publicar la principal: tareas y entrega; dos principales del mismo alumno quedan en serie y la
+  segunda responde `409 PARTICIPACION_YA_PUBLICADA` (el índice único parcial es la red de seguridad).
+- Replicar: solo la fila de `tareas`; si el admin borró la principal en medio, la llave foránea da un
+  `P2003` que `traducirErrorPrisma` traduce con `alFaltarReferencia` a `404 PARTICIPACION_NO_ENCONTRADA`.
+- Calificar: `calificarEntrega` con `tipo: "foro"`, sin cambio.
+
+**Borrar una participación (`borrarParticipacion`, FORO-01b, §D-11):** solo el admin
+(`puedeBorrarParticipacion`). Toma la fila de `tareas`; si es una principal, la de la entrega de su
+autor y vuelve a leer la principal después del bloqueo (dos borrados de la misma principal: el segundo
+responde `404` sin tocar la entrega). `efectoDeBorrarPrincipal` (`core/foros/participacion.ts`) decide:
+una calificada se conserva entera; una entregada vuelve a `asignado`, sin fecha ni retraso, con la
+versión siguiente. Las réplicas caen en cascada con `participacionForo.deleteMany`.
+
+**`alFaltarReferencia` (`db/errores.ts`):** opcional en `traducirErrorPrisma`; traduce un `P2003` (o
+`23503` del driver adapter). Sin la opción, el error se relanza como siempre.
+
+**"Actividades", temas y categorías (FORO-01b):** `listarTrabajo` acepta la sección
+`"actividades-con-foros"` (de `?seccion=actividades&conForos=si`): tareas y foros, también como cursor.
+`TIPOS_CON_TEMA` de `db/temas.ts` suma `foro`: el total sin sección lo cuenta y mover un foro de tema sube
+`tareas.version`; la sección `actividades` sigue contando solo tareas. En `db/categorias.ts`, el `409
+CATEGORIA_CON_TAREAS` habla de "actividades" si entre ellas hay foros (con solo tareas, el texto de
+siempre).
+
+**Gradebook (FORO-01b, §D-6):** `SELECT_TAREA` lee también `publicaciones.tipo` y `ColumnaDelGradebookDb`
+gana `tipo` (`"tarea"` o `"foro"`); ninguna consulta cambia.

@@ -127,7 +127,10 @@ function EdicionDeLaTarea({ claseId, tareaId }: EdicionDeLaTareaProps) {
     // falla, o la tarea ya no existe, o se perdió el acceso o puedeEditar, no se reinicia: la vista y
     // sus ganchos (useAvisoDeRecargaFallida, errorQueReemplazaLaVista, useFocoAlPerderseElControl)
     // reaccionan como en cualquier recarga.
+    // FORO-01c2 (§D-8.6, T-01 de CLASES-03d): con la vista ya desmontada, el aviso del 409 lo da el
+    // gancho y no se vuelve a pedir la tarea; el gancho la deja vieja (T-04) para cuando se vuelva.
     const recargarTrasConflicto = async () => {
+      if (!montado.current) return
       if (!sigueVigente(generacion)) return
       const resultado = await consulta.refetch()
       if (!sigueVigente(generacion)) return

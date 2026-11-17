@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
-import { TEXTOS_CALIFICAR } from "../data"
-import { useCalificarEntrega } from "../hooks"
+import { TEXTOS_CALIFICAR, TEXTOS_DEL_PANEL_POR_TIPO } from "../data"
+import { useCalificarEntrega, useCalificarParticipacion } from "../hooks"
 import {
   cuerpoDeCalificacion,
   erroresDeCalificacionDeApi,
@@ -18,20 +18,22 @@ import {
   totalDelPanel,
 } from "../lib"
 import type {
+  ActividadDelPanel,
+  ActividadDetalle,
   CalificarEntrega,
   EntregaDeAlumno,
   ErroresFormulario,
   EstadoDelPanel,
   TareaDeApertura,
-  TareaDetalle,
 } from "../types"
 
 interface FormularioDeCalificacionProps {
   claseId: string
   tareaId: string
   alumnoId: string
-  tarea: TareaDetalle
+  tarea: ActividadDetalle
   entrega: EntregaDeAlumno
+  actividad: ActividadDelPanel | undefined
   onConflicto: (error: unknown) => Promise<void>
   onCalificada: () => void
 }
@@ -53,10 +55,16 @@ function FormularioDeCalificacion({
   alumnoId,
   tarea,
   entrega,
+  actividad,
   onConflicto,
   onCalificada,
 }: FormularioDeCalificacionProps) {
-  const calificar = useCalificarEntrega(claseId, tareaId, alumnoId)
+  // FORO-01e (R-01e-1): las dos mutaciones se crean siempre (sin hooks condicionales) y la actividad
+  // elige cuál se llama; sin actividad, la de la tarea, igual que antes.
+  const calificarEntrega = useCalificarEntrega(claseId, tareaId, alumnoId)
+  const calificarParticipacion = useCalificarParticipacion(claseId, tareaId, alumnoId)
+  const calificar = actividad === undefined ? calificarEntrega : calificarParticipacion
+  const textos = TEXTOS_DEL_PANEL_POR_TIPO[actividad === undefined ? "tarea" : actividad.tipo]
   const [apertura] = useState(() => {
     const deLaTarea: TareaDeApertura = { puntos: tarea.puntos, rubrica: tarea.rubrica }
     return {
@@ -227,7 +235,7 @@ function FormularioDeCalificacion({
           }
         />
         <p id={idAyudaDelComentario} className="text-small text-muted-foreground">
-          {TEXTOS_CALIFICAR.ayudaComentario}
+          {textos.ayudaComentario}
         </p>
         {errorDelComentario !== undefined && (
           <ErrorDeCampo id={`${idComentario}-error`}>{errorDelComentario}</ErrorDeCampo>
@@ -246,10 +254,13 @@ function FormularioDeCalificacion({
 
 interface PanelDeCalificacionProps {
   claseId: string
+  // El id de la actividad: el de la tarea o, con `actividad`, el del foro.
   tareaId: string
   alumnoId: string
-  tarea: TareaDetalle
+  tarea: ActividadDetalle
   entrega: EntregaDeAlumno
+  // FORO-01e (§D-8.5): con un foro, su mutación y sus textos; sin la prop, el panel de la tarea.
+  actividad?: ActividadDelPanel
   // Tras un 409 de calificar: la vista recarga y, si puede, reinicia el panel.
   onConflicto: (error: unknown) => Promise<void>
   // Tras calificar: la vista reinicia el panel (la caché ya tiene la respuesta).
@@ -269,11 +280,13 @@ export function PanelDeCalificacion({
   alumnoId,
   tarea,
   entrega,
+  actividad,
   onConflicto,
   onCalificada,
   enfocarAlMontar,
 }: PanelDeCalificacionProps) {
   const encabezadoRef = useRef<HTMLHeadingElement>(null)
+  const textos = TEXTOS_DEL_PANEL_POR_TIPO[actividad === undefined ? "tarea" : actividad.tipo]
 
   useEffect(() => {
     if (enfocarAlMontar) encabezadoRef.current?.focus()
@@ -292,11 +305,9 @@ export function PanelDeCalificacion({
             nota. Si cambiara de lugar, una recarga de fondo (por ejemplo, la entrega pasa de
             "asignado" a "calificado" porque otro maestro la calificó) lo volvería a montar: se
             perdería lo escrito y la versión de apertura, y el guardado no recibiría el 409. */}
-        {conNota && (
-          <p className="text-small text-muted-foreground">{TEXTOS_CALIFICAR.notaSinEntrega}</p>
-        )}
+        {conNota && <p className="text-small text-muted-foreground">{textos.notaSinEntrega}</p>}
         {!calificable && (
-          <p className="text-small text-muted-foreground">{TEXTOS_CALIFICAR.podrasCalificar}</p>
+          <p className="text-small text-muted-foreground">{textos.podrasCalificar}</p>
         )}
         {calificable && (
           <FormularioDeCalificacion
@@ -305,6 +316,7 @@ export function PanelDeCalificacion({
             alumnoId={alumnoId}
             tarea={tarea}
             entrega={entrega}
+            actividad={actividad}
             onConflicto={onConflicto}
             onCalificada={onCalificada}
           />

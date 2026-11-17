@@ -179,7 +179,7 @@ export const criterioEntradaSchema = z.object({
 // Sin zona horaria se rechaza: la fecha límite viaja en ISO 8601 con Z o con desfase (regla 7).
 export const fechaLimiteSchema = z.iso.datetime({ offset: true, error: "Elige la fecha límite" })
 
-const idOpcionalSchema = z
+export const idOpcionalSchema = z
   .uuid("Elige una opción válida")
   .transform((id) => id.toLowerCase())
   .nullable()
@@ -264,25 +264,56 @@ export const tareaDetalleSchema = z.object({
 
 export const tareaRespuestaSchema = z.object({ tarea: tareaDetalleSchema })
 
-export const trabajoQuerySchema = paginacionSchema.extend({
-  tema: z.union([z.literal("sin-tema"), z.uuid().transform((id) => id.toLowerCase())], {
-    error: "tema: elige un tema válido",
-  }),
-  // CLASES-03a (§D-3.3, DH-02 b): opcional para no cambiar la respuesta de hoy; con él, solo tareas.
-  seccion: z.literal("actividades", { error: "seccion: no es válida" }).optional(),
-})
+// El tema de "Actividades de aprendizaje" y de "Recursos": "sin-tema" o el id del tema.
+export const temaDeTrabajoSchema = z.union(
+  [z.literal("sin-tema"), z.uuid().transform((id) => id.toLowerCase())],
+  { error: "tema: elige un tema válido" },
+)
+
+// FORO-01b (§D-3.2, E1-4, M-04): "Actividades" con foros es opt-in. conForos=si solo vale junto a
+// seccion=actividades; la salida tiene una sola llave, seccion, que es "actividades-con-foros" solo
+// con los dos. Así los handlers pasan seccion como siempre y la respuesta sin conForos no cambia.
+const conForosSchema = z.literal("si", { error: "conForos: no es válido" }).optional()
+
+const exigirActividadesConForos = (
+  { seccion, conForos }: { seccion?: string | undefined; conForos?: "si" | undefined },
+  contexto: z.RefinementCtx,
+): void => {
+  if (conForos === undefined || seccion === "actividades") return
+  contexto.addIssue({ code: "custom", path: ["conForos"], message: "conForos: no es válido" })
+}
+
+export const trabajoQuerySchema = paginacionSchema
+  .extend({
+    tema: temaDeTrabajoSchema,
+    // CLASES-03a (§D-3.3, DH-02 b): opcional para no cambiar la respuesta de hoy; con él, solo tareas.
+    seccion: z.literal("actividades", { error: "seccion: no es válida" }).optional(),
+    conForos: conForosSchema,
+  })
+  .superRefine(exigirActividadesConForos)
+  .transform(({ conForos, seccion, ...resto }) => ({
+    ...resto,
+    seccion: conForos === "si" ? ("actividades-con-foros" as const) : seccion,
+  }))
 
 // CLASES-03a (§D-3.4): los conteos de los temas por sección. Sin la sección, el total de hoy; no es
 // estricto porque la ruta ignoraba la consulta y un parámetro de más no debe romperla.
 export const SECCIONES_DE_TEMAS = ["actividades", "aprendizaje", "docente"] as const
 
-export const temasQuerySchema = z.object({
-  seccion: z.enum(SECCIONES_DE_TEMAS, { error: "seccion: no es válida" }).optional(),
-})
+export const temasQuerySchema = z
+  .object({
+    seccion: z.enum(SECCIONES_DE_TEMAS, { error: "seccion: no es válida" }).optional(),
+    conForos: conForosSchema,
+  })
+  .superRefine(exigirActividadesConForos)
+  .transform(({ conForos, seccion }) => ({
+    seccion: conForos === "si" ? ("actividades-con-foros" as const) : seccion,
+  }))
 
 export const elementoDeTrabajoSchema = z.object({
   id: z.uuid(),
-  tipo: z.enum(["material", "tarea"]),
+  // FORO-01b (§D-3.2): con conForos=si, "Actividades" también trae foros.
+  tipo: z.enum(["material", "tarea", "foro"]),
   titulo: z.string(),
   autor: autorDelMuroSchema,
   creadoEn: z.iso.datetime(),
@@ -340,6 +371,8 @@ export type TareaDetalle = z.infer<typeof tareaDetalleSchema>
 export type TareaRespuesta = z.infer<typeof tareaRespuestaSchema>
 export type TrabajoQuery = z.infer<typeof trabajoQuerySchema>
 export type SeccionDeTemas = (typeof SECCIONES_DE_TEMAS)[number]
+export type SeccionDeTrabajo = TrabajoQuery["seccion"]
+export type SeccionDeTemasConForos = SeccionDeTemas | "actividades-con-foros"
 export type TemasQuery = z.infer<typeof temasQuerySchema>
 export type ElementoDeTrabajo = z.infer<typeof elementoDeTrabajoSchema>
 export type ListaTrabajoRespuesta = z.infer<typeof listaTrabajoRespuestaSchema>

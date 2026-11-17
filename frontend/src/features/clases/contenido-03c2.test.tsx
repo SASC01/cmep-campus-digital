@@ -232,14 +232,17 @@ describe("Avisos pide solo los anuncios (CL3-C08)", () => {
 
 describe("Actividades de aprendizaje por sección (CL3-C09)", () => {
   it.each(["estudiante", "maestro", "admin"] as const)(
-    "CL3-C09: %s pide …/temas?seccion=actividades y cada tema con seccion=actividades; los conteos son los de la sección y «Sin tema» no sale sin actividades",
+    "CL3-C09: %s pide …/temas?seccion=actividades&conForos=si y cada tema con seccion=actividades; los conteos son los de la sección y «Sin tema» no sale sin actividades",
     async (rol: Rol) => {
       const { pedidas } = crearServidor()
       montar(`/${rol}/clases/${CLASE_ID}/trabajo`)
       expect(await screen.findByText("Tarea 1")).toBeInTheDocument()
 
       const temas = pedidas("GET", `${BASE}/temas`)
-      expect(temas.some(({ texto }) => texto === `${BASE}/temas?seccion=actividades`)).toBe(true)
+      // FORO-01d (§E7.5.5, lista cerrada; E1-4): "Actividades" también pide los foros.
+      expect(
+        temas.some(({ texto }) => texto === `${BASE}/temas?seccion=actividades&conForos=si`),
+      ).toBe(true)
       const trabajo = pedidas("GET", `${BASE}/trabajo`)
       expect(trabajo.length).toBeGreaterThan(0)
       for (const { url } of trabajo) expect(url.searchParams.get("seccion")).toBe("actividades")

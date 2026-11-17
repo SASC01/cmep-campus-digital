@@ -1,6 +1,7 @@
 import {
   calificarEntregaSchema,
   CONFIRMAR_BORRADO_CON_ENTREGAS,
+  crearForoSchema,
   crearTareaSchema,
   normalizarTextoLargo,
 } from "@campus/shared"
@@ -14,40 +15,60 @@ import {
   mensajeDeErrorDeApi,
   mensajeDeErrorDeConsulta,
 } from "@/lib/errores-de-api"
+import type { EstadoDeEntregaVisible } from "@/lib/estado-de-entrega"
 import { formatearFechaLarga } from "@/lib/format"
 import { CODIGOS_QUE_REDIRIGE_EL_CLIENTE, esApiError } from "@/services/apiClient"
-import { claveTarea } from "@/services/trabajoService"
+import { claveForo, claveTarea } from "@/services/trabajoService"
 
 import {
   CAMPO_DE_CADA_CODIGO,
   CAMPOS_DEL_FORMULARIO,
+  CAMPOS_DEL_FORMULARIO_DEL_FORO,
   CODIGOS_DE_CONFLICTO_DE_CALIFICACION,
   CODIGOS_DE_CONFLICTO_DE_ENTREGA,
+  CODIGOS_DE_CONFLICTO_DE_PARTICIPACION,
   CODIGOS_QUE_RECARGAN_LA_TAREA_AL_CALIFICAR,
   CODIGOS_QUE_REEMPLAZAN_LA_VISTA,
+  CODIGOS_QUE_REEMPLAZAN_LA_VISTA_DEL_FORO,
   LIMITE_DE_ENTREGAS,
+  LIMITE_DE_PARTICIPANTES,
+  MENSAJES_ERROR_FORO,
+  LIMITE_DE_PARTICIPACIONES,
+  LIMITE_DE_REPLICAS,
   LIMITE_DEL_HILO,
   PREFIJOS_QUE_REEMPLAZAN_LA_VISTA,
+  PREFIJOS_QUE_REEMPLAZAN_LA_VISTA_DEL_FORO,
   PUNTOS_PROPUESTOS,
   TEXTOS_CALIFICACION,
   TEXTOS_CALIFICAR,
+  TEXTOS_DETALLE_TAREA,
   TEXTOS_ENTREGAS,
+  TEXTOS_FORMULARIO_FORO,
   TEXTOS_FORMULARIO_TAREA,
+  TEXTOS_MI_PARTICIPACION,
+  TEXTOS_PARTICIPACIONES,
+  TEXTOS_PARTICIPANTE,
+  TEXTOS_PARTICIPANTES,
   TEXTOS_TU_TRABAJO,
+  TRADUCCION_DE_ERRORES_FORO,
   TRADUCCION_DE_ERRORES_TAREAS,
 } from "./data"
 import type {
+  ActividadDetalle,
   CalificacionDeEntrega,
+  CrearForo,
+  CrearTarea,
   CriterioDelFormulario,
   ErroresFormulario,
   EstadoDelFormulario,
   EstadoDelPanel,
   EstadoEntrega,
   IncidenciaValidacion,
+  MiParticipacionRespuesta,
   ResultadoDeCalificacion,
   ResultadoDelCuerpo,
   TareaDeApertura,
-  TareaDetalle,
+  TipoDeActividad,
   TotalDelPanel,
 } from "./types"
 
@@ -109,11 +130,15 @@ const erroresDeLaRuta = (incidencias: readonly IncidenciaValidacion[]): ErroresF
 // de `categoriaId` "Elige la categoría de la tarea.": la misma regla que core.validarCategoriaRequerida
 // (P-01 a); el navegador nunca elige una categoría en silencio. Los archivos no entran: se suben
 // después y sus ids se agregan a `archivoIds`.
+// FORO-01c2 (§D-8.3): con `tipo` "foro", el esquema del foro (planteamiento obligatorio y sus mensajes);
+// los datos válidos llevan además el requiereAdjuntos del estado, que el foro no envía (cuerpoDeForo).
 export const cuerpoDeTarea = (
   estado: EstadoDelFormulario,
   categoriasEnLaClase: number,
+  tipo: TipoDeActividad = "tarea",
 ): ResultadoDelCuerpo => {
-  const resultado = crearTareaSchema.safeParse({
+  const esquema = tipo === "foro" ? crearForoSchema : crearTareaSchema
+  const resultado = esquema.safeParse({
     titulo: normalizarTextoLargo(estado.titulo),
     instrucciones: normalizarTextoLargo(estado.instrucciones),
     fechaLimite: fechaLocalAIso(estado.fechaLimite),
@@ -133,8 +158,21 @@ export const cuerpoDeTarea = (
     errores.categoriaId = TEXTOS_FORMULARIO_TAREA.categoriaRequerida
   }
   if (!resultado.success || Object.keys(errores).length > 0) return { ok: false, errores }
-  return { ok: true, datos: resultado.data }
+  return { ok: true, datos: { ...resultado.data, requiereAdjuntos: estado.requiereAdjuntos } }
 }
+
+// FORO-01c2 (§D-8.3): el cuerpo de crear o editar un foro sale del de la tarea sin "Cómo se entrega".
+export const cuerpoDeForo = (datos: CrearTarea): CrearForo => ({
+  titulo: datos.titulo,
+  instrucciones: datos.instrucciones ?? "",
+  fechaLimite: datos.fechaLimite,
+  puntos: datos.puntos,
+  aceptaTardias: datos.aceptaTardias,
+  categoriaId: datos.categoriaId,
+  temaId: datos.temaId,
+  rubrica: datos.rubrica,
+  archivoIds: datos.archivoIds,
+})
 
 // T-06: un VALIDACION del servidor por una fila de la rúbrica lleva "rubrica.<índice>.<campo>: mensaje"
 // (el índice de la fila en el envío). El prefijo de campo genérico no lo reconoce porque lleva puntos y
@@ -151,19 +189,49 @@ export const mensajeDeErrorTareas = (error: unknown): string =>
 export const mensajeDeConsultaTareas = (error: unknown): string =>
   mensajeDeErrorDeConsulta(error, TRADUCCION_DE_ERRORES_TAREAS)
 
+// FORO-01c2 (§E7.3 "Frontend", punto 6): las del foro, con TRADUCCION_DE_ERRORES_FORO ("Ese foro ya no
+// existe.", los ids del foro y los tres códigos nuevos con el texto del servidor).
+export const mensajeDeErrorForo = (error: unknown): string =>
+  mensajeDeErrorDeApi(error, TRADUCCION_DE_ERRORES_FORO)
+
+export const mensajeDeConsultaForo = (error: unknown): string =>
+  mensajeDeErrorDeConsulta(error, TRADUCCION_DE_ERRORES_FORO)
+
+// Los errores de campo de una actividad, con sus campos pintados y su traducción.
+const erroresDeLaActividadDeApi = (
+  error: unknown,
+  campos: readonly string[],
+  mensajeDe: (error: unknown) => string,
+): ErroresFormulario | null => {
+  if (!esApiError(error)) return null
+  const fila = error.codigo === "VALIDACION" ? PREFIJO_DE_FILA.exec(error.message) : null
+  if (fila) return { [`rubrica.${fila[1]}.${fila[2]}`]: mensajeDe(error) }
+  if (Object.hasOwn(CAMPO_DE_CADA_CODIGO, error.codigo)) {
+    const campo = CAMPO_DE_CADA_CODIGO[error.codigo]
+    if (campo !== undefined) return { [campo]: mensajeDe(error) }
+  }
+  return erroresDeFormularioDeApi(error, campos, mensajeDe)
+}
+
 // El error de un campo del formulario que dice el servidor: por su código (fecha, categoría o tema) o
 // por el prefijo de campo de un VALIDACION. null si el error no es de ningún campo: ese lo avisa un
 // toast (T-19, CLAUDE.md "Manejo de errores en el frontend").
-export const erroresDeLaTareaDeApi = (error: unknown): ErroresFormulario | null => {
-  if (!esApiError(error)) return null
-  const fila = error.codigo === "VALIDACION" ? PREFIJO_DE_FILA.exec(error.message) : null
-  if (fila) return { [`rubrica.${fila[1]}.${fila[2]}`]: mensajeDeErrorTareas(error) }
-  if (Object.hasOwn(CAMPO_DE_CADA_CODIGO, error.codigo)) {
-    const campo = CAMPO_DE_CADA_CODIGO[error.codigo]
-    if (campo !== undefined) return { [campo]: mensajeDeErrorTareas(error) }
-  }
-  return erroresDeFormularioDeApi(error, CAMPOS_DEL_FORMULARIO, mensajeDeErrorTareas)
-}
+export const erroresDeLaTareaDeApi = (error: unknown): ErroresFormulario | null =>
+  erroresDeLaActividadDeApi(error, CAMPOS_DEL_FORMULARIO, mensajeDeErrorTareas)
+
+// FORO-01c2 (§D-8.3, FORO-1C08): los del foro; requiereAdjuntos y version cuentan como no pintados.
+export const erroresDelForoDeApi = (error: unknown): ErroresFormulario | null =>
+  erroresDeLaActividadDeApi(error, CAMPOS_DEL_FORMULARIO_DEL_FORO, mensajeDeErrorForo)
+
+// FormularioTarea elige la traducción por el tipo de la actividad.
+export const erroresDelFormularioDeApi = (
+  tipo: TipoDeActividad,
+  error: unknown,
+): ErroresFormulario | null =>
+  tipo === "foro" ? erroresDelForoDeApi(error) : erroresDeLaTareaDeApi(error)
+
+export const mensajeDelFormulario = (tipo: TipoDeActividad, error: unknown): string =>
+  tipo === "foro" ? mensajeDeErrorForo(error) : mensajeDeErrorTareas(error)
 
 // La llave local de un criterio: estable aunque se quiten criterios de en medio (el servidor aún no le
 // da id), así React conserva lo escrito en cada fila.
@@ -182,7 +250,7 @@ export const criterioVacio = (): CriterioDelFormulario => ({
 // Lo que el formulario muestra al abrirse: una tarea nueva con los puntos propuestos (S-03) o los
 // valores de la tarea que se edita (la fecha, en la hora local del navegador; una tarea sin categoría
 // carga con categoriaId "" y el selector pide elegir una si la clase ya tiene).
-export const estadoInicialDelFormulario = (tarea: TareaDetalle | null): EstadoDelFormulario => {
+export const estadoInicialDelFormulario = (tarea: ActividadDetalle | null): EstadoDelFormulario => {
   if (tarea === null) {
     return {
       titulo: "",
@@ -204,7 +272,8 @@ export const estadoInicialDelFormulario = (tarea: TareaDetalle | null): EstadoDe
     categoriaId: tarea.categoria === null ? "" : tarea.categoria.id,
     temaId: tarea.tema === null ? "" : tarea.tema.id,
     aceptaTardias: tarea.aceptaTardias,
-    requiereAdjuntos: tarea.requiereAdjuntos,
+    // Un foro no tiene "Cómo se entrega" (FORO-01c2): su estado conserva el de una actividad nueva.
+    requiereAdjuntos: "requiereAdjuntos" in tarea ? tarea.requiereAdjuntos : true,
     rubrica: tarea.rubrica.map(({ criterio, puntosMax }) => ({
       llave: nuevaLlaveDeCriterio(),
       criterio,
@@ -230,6 +299,16 @@ export const errorQueReemplazaLaVista = (hayTarea: boolean, error: unknown): boo
   return PREFIJOS_QUE_REEMPLAZAN_LA_VISTA.some((prefijo) => error.message.startsWith(prefijo))
 }
 
+// FORO-01c2 (§E7.3 "Frontend", punto 6; §D-8.3): la misma regla para la vista de un foro, con sus
+// códigos y sus ids (foroId en lugar de tareaId).
+export const errorQueReemplazaLaVistaDelForo = (hayForo: boolean, error: unknown): boolean => {
+  if (!hayForo) return true
+  if (!esApiError(error)) return false
+  if (CODIGOS_QUE_REEMPLAZAN_LA_VISTA_DEL_FORO.includes(error.codigo)) return true
+  if (error.codigo !== "VALIDACION") return false
+  return PREFIJOS_QUE_REEMPLAZAN_LA_VISTA_DEL_FORO.test(error.message)
+}
+
 // ENTREGAS-01d, ronda 2 (T-05): un error con que apiClient ya redirigió (CODIGOS_QUE_REDIRIGE_EL_CLIENTE).
 export const errorQueRedirigeElCliente = (error: unknown): boolean =>
   esApiError(error) && CODIGOS_QUE_REDIRIGE_EL_CLIENTE.includes(error.codigo)
@@ -243,6 +322,14 @@ export const avisoDeRecargaFallidaAlEditar = (error: unknown): string => {
     return TEXTOS_FORMULARIO_TAREA.avisoRecargaFallida
   }
   return TEXTOS_FORMULARIO_TAREA.avisoRecargaFallidaDelServidor
+}
+
+// FORO-01c2: lo mismo al editar un foro, con su texto.
+export const avisoDeRecargaFallidaAlEditarElForo = (error: unknown): string => {
+  if (!esApiError(error) || error.codigo === "SIN_CONEXION" || error.estado >= 500) {
+    return TEXTOS_FORMULARIO_FORO.avisoRecargaFallida
+  }
+  return TEXTOS_FORMULARIO_FORO.avisoRecargaFallidaDelServidor
 }
 
 // T-06: los errores de una fila de la rúbrica viajan con su fila. `cuerpoDeTarea` y los errores del
@@ -383,6 +470,31 @@ export const rutaDeBorrarTarea = (
   confirmarEntregas: boolean,
 ): string => {
   const ruta = `/api/clases/${claseId}/tareas/${tareaId}`
+  if (!confirmarEntregas) return ruta
+  return `${ruta}?${new URLSearchParams({ confirmar: CONFIRMAR_BORRADO_CON_ENTREGAS }).toString()}`
+}
+
+// FORO-01c2 (§D-8.3): la fila "Entrega" de "Detalles": cómo se entrega una tarea; null en un foro, que
+// no la tiene.
+export const textoDeLaEntrega = (actividad: ActividadDetalle): string | null => {
+  if (!("requiereAdjuntos" in actividad)) return null
+  if (actividad.requiereAdjuntos) return TEXTOS_DETALLE_TAREA.entregaConAdjuntos
+  return TEXTOS_DETALLE_TAREA.entregaMarcandoCompletada
+}
+
+// FORO-01c2, corrección de la ronda 2 (T-02): el id de la ruta en su forma canónica, en minúsculas, como
+// lo devuelve el servidor (los esquemas de shared pasan los uuid a minúsculas). Las vistas del foro lo
+// aplican a la entrada, así la consulta, la key, los ganchos y la clave de foco usan la misma clave que
+// los datos (`foro.id`). Un id que no es uuid sigue llegando al servidor, que responde su 400.
+export const idCanonicoDeLaRuta = (id: string): string => id.toLowerCase()
+
+// FORO-01c2 (§D-8.3): borrar un foro, con la misma confirmación que la tarea.
+export const rutaDeBorrarForo = (
+  claseId: string,
+  foroId: string,
+  confirmarEntregas: boolean,
+): string => {
+  const ruta = `/api/clases/${claseId}/foros/${foroId}`
   if (!confirmarEntregas) return ruta
   return `${ruta}?${new URLSearchParams({ confirmar: CONFIRMAR_BORRADO_CON_ENTREGAS }).toString()}`
 }
@@ -665,3 +777,219 @@ export const fraseDeFechaDeCalificacion = (calificacion: CalificacionDeEntrega):
 
 export const fraseDePuntaje = (puntaje: CalificacionDeEntrega["puntajes"][number]): string =>
   TEXTOS_CALIFICACION.puntaje(puntaje.criterio, puntaje.puntos, puntaje.puntosMax)
+
+// FORO-01d (§E11.3): las claves de lo de cada foro, con su forma literal. Cuelgan de claveForo (borrar el
+// foro, pedirlo de nuevo y T-03 las alcanzan); claveParticipaciones no es prefijo de claveReplicas, así
+// que renovar la lista no vuelve a pedir cada bloque abierto. El participacionId sale siempre de los
+// datos (participacion.id), nunca de la URL.
+export const claveMiParticipacion = (claseId: string, foroId: string) =>
+  [...claveForo(claseId, foroId), "mia"] as const
+export const claveParticipaciones = (claseId: string, foroId: string) =>
+  [...claveForo(claseId, foroId), "participaciones"] as const
+export const claveReplicas = (claseId: string, foroId: string, participacionId: string) =>
+  [...claveForo(claseId, foroId), "replicas", participacionId] as const
+
+// FORO-01d (§D-3.1): las rutas de participar, replicar y borrar. foroId es el canónico de la vista.
+const rutaDelForo = (claseId: string, foroId: string): string =>
+  `/api/clases/${claseId}/foros/${foroId}`
+
+export const rutaDeMiParticipacion = (claseId: string, foroId: string): string =>
+  `${rutaDelForo(claseId, foroId)}/mi-participacion`
+
+export const rutaDeLasParticipaciones = (claseId: string, foroId: string): string =>
+  `${rutaDelForo(claseId, foroId)}/participaciones`
+
+export const rutaDeUnaParticipacion = (
+  claseId: string,
+  foroId: string,
+  participacionId: string,
+): string => `${rutaDeLasParticipaciones(claseId, foroId)}/${participacionId}`
+
+export const rutaDeLasReplicas = (claseId: string, foroId: string, participacionId: string) =>
+  `${rutaDeUnaParticipacion(claseId, foroId, participacionId)}/replicas`
+
+const conPagina = (ruta: string, limite: number, cursor: string | undefined): string => {
+  const consulta = new URLSearchParams({ limite: String(limite) })
+  if (cursor !== undefined) consulta.set("cursor", cursor)
+  return `${ruta}?${consulta.toString()}`
+}
+
+export const rutaDePaginaDeParticipaciones = (
+  claseId: string,
+  foroId: string,
+  cursor: string | undefined,
+): string => conPagina(rutaDeLasParticipaciones(claseId, foroId), LIMITE_DE_PARTICIPACIONES, cursor)
+
+export const rutaDePaginaDeReplicas = (
+  claseId: string,
+  foroId: string,
+  participacionId: string,
+  cursor: string | undefined,
+): string =>
+  conPagina(rutaDeLasReplicas(claseId, foroId, participacionId), LIMITE_DE_REPLICAS, cursor)
+
+// §D-8.4: un 409 de publicar (ya publicada, calificada o el foro cerrado).
+export const esConflictoDeParticipacion = (error: unknown): boolean =>
+  esApiError(error) && CODIGOS_DE_CONFLICTO_DE_PARTICIPACION.includes(error.codigo)
+
+// El error de «texto» de un VALIDACION (también con ruta, «texto.0:»), sin la ruta; null si no es de
+// ese campo. Lo pinta el formulario; los demás se avisan.
+export const errorDelTextoDeLaParticipacion = (error: unknown): string | null => {
+  if (!esApiError(error) || error.codigo !== "VALIDACION") return null
+  if (!/^texto(\.\d+)?:/.test(error.message)) return null
+  return mensajeDeErrorForo(error)
+}
+
+// El aviso de un error al publicar: el texto del servidor o el fijo del código; ante lo que no tiene
+// texto propio (un 5xx, la red), el de §D-9 («No pudimos publicar tu …»).
+export const mensajeAlPublicarParticipacion = (error: unknown, generico: string): string => {
+  const mensaje = mensajeDeErrorForo(error)
+  return mensaje === TRADUCCION_DE_ERRORES_FORO.generico ? generico : mensaje
+}
+
+// «Tu participación» (E1-1): el estado lo decide el servidor; el cliente no compara fechas.
+export const estadoVisibleDeMiParticipacion = (
+  mia: MiParticipacionRespuesta,
+): EstadoDeEntregaVisible => {
+  if (mia.estado === "calificado") return "calificado"
+  if (mia.estado === "entregado" && mia.conRetraso) return "entregado-con-retraso"
+  if (mia.estado === "entregado") return "entregado"
+  if (!mia.puedeParticipar && mia.principalId === null) return "sin-entregar"
+  return "asignado"
+}
+
+// «Participaste el lunes 3 de noviembre a las 14:30» («… con retraso»), en la hora local; o «Todavía no
+// participas.» sin fecha.
+export const fraseDeMiParticipacion = (mia: MiParticipacionRespuesta): string => {
+  if (mia.fechaEntrega === null) return TEXTOS_MI_PARTICIPACION.todaviaNo
+  const fecha = new Date(mia.fechaEntrega)
+  const frase = TEXTOS_MI_PARTICIPACION.participaste(formatearFechaLarga(fecha), horaLocal(fecha))
+  return mia.conRetraso ? `${frase}${TEXTOS_MI_PARTICIPACION.conRetraso}` : frase
+}
+
+// §D-8.4 (O-r1-2): el conteo del control de réplicas es el mayor entre el de la lista y lo que el
+// bloque ya cargó, así una réplica vista nunca se olvida al plegar.
+export const conteoDeReplicasDeLaParticipacion = (enLaLista: number, cargadas: number): number =>
+  Math.max(enLaLista, cargadas)
+
+// FORO-01d, ronda 1 (T-01, arbitraje del manager, opción b): las dos listas del foro (principales y
+// réplicas) unen sus páginas quedándose con la ÚLTIMA aparición de cada id, en su lugar. Publicar agrega
+// la respuesta al final de lo cargado; si quedaban páginas, el servidor la vuelve a traer al final de la
+// suya (paginan por (creado_en, id) ascendente, así que una fila no se repite entre páginas del
+// servidor) y esa copia es la que tiene la posición correcta. lib/unir-paginas.ts (la primera
+// aparición) sigue siendo la de las demás listas. No muta la entrada.
+export const unirPaginasConLaUltimaAparicion = <T extends { id: string }>(
+  paginas: readonly (readonly T[])[],
+): T[] => {
+  const filas = paginas.flat()
+  const ultima = new Map<string, number>()
+  filas.forEach((fila, indice) => ultima.set(fila.id, indice))
+  return filas.filter((fila, indice) => ultima.get(fila.id) === indice)
+}
+
+// M-12 y O-01d-2: la principal ya no existe (404 PARTICIPACION_NO_ENCONTRADA). Ante una recarga con datos,
+// el bloque de réplicas avisa una vez por fallo «Esa participación ya no existe.» (no el aviso de recarga
+// fallida) y la lista se renueva, así que la fila sale.
+export const esParticipacionNoEncontrada = (error: unknown): boolean =>
+  esApiError(error) && error.codigo === "PARTICIPACION_NO_ENCONTRADA"
+
+// §D-10: la primera carga fallida del bloque de réplicas. Si la principal ya no existe, el bloque lo dice
+// (y la lista se renueva, en el gancho); lo demás, el texto del bloque (N-37), nunca el del servidor.
+export const textoDelErrorDeLasReplicas = (error: unknown): string =>
+  esApiError(error) && error.codigo === "PARTICIPACION_NO_ENCONTRADA"
+    ? MENSAJES_ERROR_FORO.participacionNoEncontrada
+    : TEXTOS_PARTICIPACIONES.errorAlCargarReplicas
+
+// FORO-01e (§E13.5): las claves de «Participantes» y de la participación de un alumno, con su forma
+// literal, como las de las entregas de una tarea (`"lista"` y `"alumno"`). Cuelgan de claveForo; ningún id
+// ocupa la posición de un segmento fijo bajo el mismo padre (alumnoId va solo detrás de "alumno").
+// claveParticipante es prefijo de lo que escribió el alumno y de sus devoluciones: donde solo cambia la
+// participante (calificar, el 409) se escribe y se invalida con exact.
+export const clavePrefijoDeParticipantes = (claseId: string, foroId: string) =>
+  [...claveForo(claseId, foroId), "participantes"] as const
+export const claveListaDeParticipantes = (claseId: string, foroId: string) =>
+  [...clavePrefijoDeParticipantes(claseId, foroId), "lista"] as const
+export const claveParticipante = (claseId: string, foroId: string, alumnoId: string) =>
+  [...clavePrefijoDeParticipantes(claseId, foroId), "alumno", alumnoId] as const
+export const claveParticipacionesDeAlumno = (claseId: string, foroId: string, alumnoId: string) =>
+  [...claveParticipante(claseId, foroId, alumnoId), "participaciones"] as const
+export const claveDevoluciones = (claseId: string, foroId: string, alumnoId: string) =>
+  [...claveParticipante(claseId, foroId, alumnoId), "devoluciones"] as const
+export const claveMisDevoluciones = (claseId: string, foroId: string) =>
+  [...claveMiParticipacion(claseId, foroId), "devoluciones"] as const
+
+// FORO-01e (§D-3.1, rutas 7 y 12 a 16). foroId y alumnoId son los canónicos de la vista.
+const rutaDeLosParticipantes = (claseId: string, foroId: string): string =>
+  `${rutaDelForo(claseId, foroId)}/participantes`
+
+export const rutaDePaginaDeParticipantes = (
+  claseId: string,
+  foroId: string,
+  cursor: string | undefined,
+): string => conPagina(rutaDeLosParticipantes(claseId, foroId), LIMITE_DE_PARTICIPANTES, cursor)
+
+export const rutaDeParticipante = (claseId: string, foroId: string, alumnoId: string): string =>
+  `${rutaDeLosParticipantes(claseId, foroId)}/${alumnoId}`
+
+export const rutaDePaginaDeParticipacionesDeAlumno = (
+  claseId: string,
+  foroId: string,
+  alumnoId: string,
+  cursor: string | undefined,
+): string =>
+  conPagina(
+    `${rutaDeParticipante(claseId, foroId, alumnoId)}/participaciones`,
+    LIMITE_DE_PARTICIPACIONES,
+    cursor,
+  )
+
+export const rutaDePaginaDeDevoluciones = (
+  claseId: string,
+  foroId: string,
+  alumnoId: string,
+  cursor: string | undefined,
+): string =>
+  conPagina(
+    `${rutaDeParticipante(claseId, foroId, alumnoId)}/devoluciones`,
+    LIMITE_DEL_HILO,
+    cursor,
+  )
+
+export const rutaDePaginaDeMisDevoluciones = (
+  claseId: string,
+  foroId: string,
+  cursor: string | undefined,
+): string =>
+  conPagina(`${rutaDeMiParticipacion(claseId, foroId)}/devoluciones`, LIMITE_DEL_HILO, cursor)
+
+export const rutaDeCalificacionDeParticipante = (
+  claseId: string,
+  foroId: string,
+  alumnoId: string,
+): string => `${rutaDeParticipante(claseId, foroId, alumnoId)}/calificacion`
+
+// Los destinos de la interfaz, desde la base de la clase de la perspectiva actual.
+export const enlaceAlForo = (base: string, foroId: string): string => `${base}/foros/${foroId}`
+
+export const enlaceAParticipantes = (base: string, foroId: string): string =>
+  `${enlaceAlForo(base, foroId)}/participantes`
+
+export const enlaceAParticipante = (base: string, foroId: string, alumnoId: string): string =>
+  `${enlaceAParticipantes(base, foroId)}/${alumnoId}`
+
+// «Participaron 12 de 30 alumnos.» con lo que dice la página más reciente (como conteoDeEntregas).
+export const conteoDeParticipantes = (
+  paginas: readonly { entregadas: number; total: number }[],
+): string | null => {
+  const ultima = paginas.at(-1)
+  if (ultima === undefined) return null
+  return TEXTOS_PARTICIPANTES.conteo(ultima.entregadas, ultima.total)
+}
+
+// «Participó el lunes 3 de noviembre a las 14:30» o «Todavía no participa.», en la hora local.
+export const fraseDeParticipante = (entrega: { fechaEntrega: string | null }): string => {
+  if (entrega.fechaEntrega === null) return TEXTOS_PARTICIPANTE.todaviaNoParticipa
+  const fecha = new Date(entrega.fechaEntrega)
+  if (Number.isNaN(fecha.getTime())) return TEXTOS_PARTICIPANTE.todaviaNoParticipa
+  return TEXTOS_PARTICIPANTE.participo(formatearFechaLarga(fecha), horaLocal(fecha))
+}

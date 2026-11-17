@@ -1,5 +1,16 @@
-import type { CalificarEntrega, CriterioDeRubrica, CrearTarea } from "@campus/shared"
-import type { QueryObserverResult } from "@tanstack/react-query"
+import type {
+  CalificarEntrega,
+  CriterioDeRubrica,
+  CrearTarea,
+  ForoDetalle,
+  ListaComentariosPrivadosRespuesta,
+  TareaDetalle,
+} from "@campus/shared"
+import type {
+  InfiniteData,
+  QueryObserverResult,
+  UseInfiniteQueryResult,
+} from "@tanstack/react-query"
 
 import type { ErroresFormulario } from "@/lib/errores-de-api"
 
@@ -11,14 +22,26 @@ export type {
   Categoria,
   ComentarioPrivado,
   CrearComentario,
+  CrearForo,
+  CrearParticipacion,
+  CrearReplica,
   CrearTarea,
   CriterioDeRubrica,
+  EditarForo,
   EditarTarea,
   EntregaDeAlumno,
   Entregar,
   EstadoEntrega,
   FilaDeEntrega,
+  ForoDetalle,
   ListaComentariosPrivadosRespuesta,
+  ListaParticipacionesDeAlumnoRespuesta,
+  ListaParticipacionesRespuesta,
+  ParticipacionDeAlumno,
+  ListaReplicasRespuesta,
+  MiParticipacionRespuesta,
+  Participacion,
+  Replica,
   ListaEntregasRespuesta,
   MiEntrega,
   ResumenDeTarea,
@@ -102,4 +125,65 @@ export interface TotalDelPanel {
 export interface VariablesDeCalificar {
   cuerpo: CalificarEntrega
   habiaCalificacion: boolean
+}
+
+// FORO-01c2 (§D-8.3): una actividad es una tarea o un foro. FormularioTarea, AccionesDeLaTarea y
+// DetallesDeLaTarea reciben cualquiera de las dos; sin `tipo`, la tarea.
+export type TipoDeActividad = "tarea" | "foro"
+export type ActividadDetalle = TareaDetalle | ForoDetalle
+
+// Los textos de la política de entregas tardías en "Detalles" (la fila y sus dos valores).
+export interface TextosDeLaPolitica {
+  titulo: string
+  acepta: string
+  noAcepta: string
+}
+
+// FORO-01d (§E8.4): lo que useVerMasConservandoLaLista necesita de la consulta (su «Ver más») y de la
+// vista (el foco tras cargar: la primera fila nueva o el encabezado de la lista).
+export interface ConsultaConVerMas {
+  fetchNextPage: (opciones: { cancelRefetch: boolean }) => Promise<{
+    isError: boolean
+    error: unknown
+  }>
+}
+
+export interface OpcionesDeVerMas {
+  ids: string[] | undefined
+  enfocarFila: (id: string) => boolean
+  enfocarEncabezado: () => void
+}
+
+// FORO-01d (§D-11): borrar una principal (principalId null) o una réplica (con su principal).
+export interface VariablesDeBorrarParticipacion {
+  participacionId: string
+  principalId: string | null
+}
+
+// FORO-01e (§D-8.5): el panel de calificación con un foro (sin la prop, el de la tarea).
+export interface ActividadDelPanel {
+  tipo: "foro"
+  id: string
+}
+
+// FORO-01e: los textos de la tabla de entregas que cambian con la actividad (las columnas y el enlace).
+export interface TextosDeLaTablaDeEntregas {
+  columnas: { alumno: string; estado: string; entregada: string; acciones: string }
+  verEntrega: string
+  sinFecha: string
+}
+
+// FORO-01e (§E13.6): la consulta de un bloque de comentarios de la devolución (la de un alumno o la del
+// alumno que mira), inferida de TanStack Query.
+export type ConsultaDeDevoluciones = UseInfiniteQueryResult<
+  InfiniteData<ListaComentariosPrivadosRespuesta>
+>
+
+// Los textos de un bloque de comentarios de la devolución (vacio: null si el bloque no se pinta vacío).
+export interface TextosDeDevoluciones {
+  titulo: string
+  vacio: string | null
+  errorAlCargar: string
+  recargaFallida: string
+  cambioMientrasLosVeias: string
 }

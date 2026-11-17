@@ -239,3 +239,26 @@ claseId }`. La firma del autor y `propio` vienen armadas del adaptador; ninguna 
   `puedeBorrar` de `core/autoria.ts` dentro del adaptador. Las respuestas tienen la forma de los
   comentarios. El autor sale con `firmaDelAutor`; ninguna respuesta lleva correo, estado de pago,
   restricción, rol ni quién marcó la duda. Ninguna ruta encola (S-04).
+- `foros.ts` (prefijo `/api`, FORO-01, `forosHandler`, registrado después de `calificacionesHandler`):
+  las 17 rutas de `/clases/:claseId/foros` (`plan.md` de FORO-01, §D-3.1 y §D-11).
+  - Crear, editar y borrar un foro (`POST …/foros`, `PUT` y `DELETE …/foros/:foroId`): maestro y admin
+    (`propiedad`), con la autoría de las tareas. Reutilizan `crearTarea`, `editarTarea` y `borrarTarea`
+    con `tipo: "foro"` y encolan o cancelan `TAREA_CREADA` y `RECORDATORIO_24H` en la misma transacción.
+  - Leer la lista, el detalle, las principales y las réplicas: estudiante, maestro y admin
+    (`inscripcion`). "Mi participación" y sus devoluciones: solo el estudiante, siempre el de la sesión.
+  - Publicar la principal: solo el estudiante; replicar: estudiante y maestro (el admin lee). No encolan
+    nada (S-09).
+  - Participantes, un participante, lo que escribió y sus devoluciones: maestro y admin (`propiedad`).
+    Calificar: solo el maestro (`propiedad`; `CALIFICACION_PUBLICADA` con un id nuevo por publicación).
+  - Borrar una participación principal o una réplica (`DELETE …/participaciones/:participacionId`,
+    FORO-01b): solo el admin (`propiedad`, PB-1 a); `204`, sin cuerpo y sin encolar.
+  - Clase archivada: las 10 lecturas declaran `enClaseArchivada: "lectura"`; las 7 escrituras, ninguna
+    (cerradas para todos, también la 17 para el admin, S-E3-1).
+  - Un `null` del adaptador responde `404 TAREA_NO_ENCONTRADA` "Ese foro ya no existe.", también con el
+    id de una tarea, un anuncio o un material. Ninguna respuesta lleva correo, estado de pago,
+    restricción, rol, el id del trabajo ni `requiereAdjuntos`.
+  - Las listas de participaciones y réplicas llevan `propia`, `puedeBorrar` (de `core/autoria.ts`) y
+    `conRetraso` solo si esa persona lo ve (`verRetrasoDe`, DH-07).
+- `calificaciones.ts`, desde FORO-01b: el gradebook y "Mis calificaciones" aceptan `?conTipo=si`
+  (`gradebookQuerySchema`, `misCalificacionesQuerySchema`); con él, cada columna lleva `tipo` (`tarea` o
+  `foro`) y sin él la respuesta es la de antes (DH-09 a). La exportación nunca lo lleva.

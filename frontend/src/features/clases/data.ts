@@ -89,6 +89,8 @@ export const LIMITE_COMENTARIOS = 20
 // CLASES-03e (S-06): las dudas y sus respuestas se piden de 20 en 20.
 export const LIMITE_DUDAS = 20
 export const LIMITE_RESPUESTAS = 20
+// FORO-01c1 (§D-3.1): la lista de foros se pide de 20 en 20.
+export const LIMITE_FOROS = 20
 export const ESPERA_BUSQUEDA_MS = 300
 
 // DESIGN.md §7.6: variantes de la tarjeta de clase, según la identidad de la clase (S-06), nunca un
@@ -424,6 +426,8 @@ export const TEXTOS_CLASE = {
   // perspectivas. "Recursos" y "Dudas" entran en la lista en 03d y 03e.
   avisos: "Avisos",
   trabajo: "Actividades de aprendizaje",
+  // FORO-01c1 (§D-8.1, §D-9): "Foro", la tercera sección.
+  foro: "Foro",
   recursos: "Recursos",
   dudas: "Dudas",
   personas: "Personas",
@@ -537,9 +541,6 @@ export const TEXTOS_FORMULARIO_PUBLICACION = {
   campoAnuncio: "Anuncio",
   publicarAnuncio: "Publicar anuncio",
   avisoPublicado: "Publicado",
-  // La lee PR-1A17 de features/tareas (como-se-entrega-01a.test.tsx); sale cuando esa prueba apunte a
-  // TEXTOS_FORMULARIO_RECURSO.
-  sinTema: TEXTOS_DE_LA_CLASE.sinTema,
 } as const
 
 // TAREAS-01d (§D-10, S-10): la tarjeta de una tarea en el muro.
@@ -591,10 +592,13 @@ export {
 export const TIEMPO_FRESCO_DEL_MURO_MS = 240_000
 
 // CLASES-03 (§D-7.1, RF-60, S-08): las secciones de la clase, en este orden y las mismas en las tres
-// perspectivas; "Personas" junta a los maestros y el roster (§D-7.7). Sin "Foro" (FORO-01).
+// perspectivas; "Personas" junta a los maestros y el roster (§D-7.7).
 const SECCIONES_DE_LA_CLASE: readonly SeccionDeClase[] = [
   { segmento: "", texto: TEXTOS_CLASE.avisos },
   { segmento: "trabajo", texto: TEXTOS_CLASE.trabajo },
+  // FORO-01c1 (§D-8.1): "Foro", entre "Actividades de aprendizaje" y "Recursos". Activa en `foro`, no en
+  // `foros/:foroId` (como "Actividades" no lo está en `tareas/:tareaId`).
+  { segmento: "foro", texto: TEXTOS_CLASE.foro },
   // CLASES-03d (§D-7.1): "Recursos", entre "Actividades de aprendizaje" y "Personas".
   { segmento: "recursos", texto: TEXTOS_CLASE.recursos },
   // CLASES-03e (§D-7.1): "Dudas", entre "Recursos" y "Personas".
@@ -653,7 +657,8 @@ export const CLAVE_SIN_TEMA = "sin-tema"
 // §D-11: textos de "Trabajo de clase" (propuesta).
 export const TEXTOS_TRABAJO = {
   titulo: TEXTOS_CLASE.trabajo,
-  sinTema: TEXTOS_FORMULARIO_PUBLICACION.sinTema,
+  // FORO-01c1 (PR-1A17): el texto vive en components/clase/data.ts.
+  sinTema: TEXTOS_DE_LA_CLASE.sinTema,
   temaVacio: "Aún no hay nada en este tema.",
   vacio: "Aún no hay actividades en esta clase.",
   cargandoTema: (nombre: string) => `Cargando ${nombre}`,
@@ -662,6 +667,10 @@ export const TEXTOS_TRABAJO = {
   ocultarMaterial: "Ocultar material",
   verMasDe: (nombre: string) => `Ver más de ${nombre}`,
   crearTarea: "Crear tarea",
+  // FORO-01d (§D-8.3, §D-9): "Crear foro" junto a "Crear tarea", y la insignia de un foro en su fila.
+  crearForo: "Crear foro",
+  insigniaForo: "Foro",
+  foro: "Foro:",
   nuevoTema: "Nuevo tema",
   categorias: "Categorías de calificación",
   tarea: "Tarea:",
@@ -810,6 +819,27 @@ export const CODIGOS_QUE_RENUEVAN_LOS_RECURSOS: readonly string[] = [
   "PUBLICACION_NO_ENCONTRADA",
 ]
 
+// FORO-01c1 (§D-8.2, §D-9; DH-12): textos de la sección "Foro".
+export const TEXTOS_FOROS = {
+  titulo: TEXTOS_CLASE.foro,
+  frase: "Participa en cada foro antes de su fecha límite.",
+  crear: "Crear foro",
+  cargando: "Cargando los foros…",
+  vacio: "Aún no hay foros en esta clase.",
+  verMas: "Ver más foros",
+  // El texto oculto al inicio de cada fila: la fila es un enlace al foro.
+  rotuloDeLaFila: "Foro:",
+  participaciones: (n: number) => {
+    if (n === 0) return "Sin participaciones"
+    if (n === 1) return "1 participación"
+    return `${n} participaciones`
+  },
+  // La acción que pide se cumple al pulsar "Foro" estando ahí, al ir a otra sección y regresar, y con
+  // atrás y adelante del historial (FORO-1C20 a FORO-1C23).
+  cambioMientrasLosVeias:
+    "La lista de foros cambió mientras la veías. Vuelve a abrir Foro para verla completa.",
+} as const
+
 // CLASES-03e (§D-13, Enmienda 4): textos de "Dudas".
 export const TEXTOS_DUDAS = {
   titulo: TEXTOS_CLASE.dudas,
@@ -873,16 +903,17 @@ export const TEXTOS_CATEGORIAS = {
   peso: "Peso",
   sufijoPeso: "%",
   deLaFila: (n: number) => `de la categoría ${n}`,
-  tareas: (n: number) => (n === 1 ? "1 tarea" : `${n} tareas`),
+  // FORO-01d (E1-9, §E7.8): el editor cuenta actividades (tareas y foros).
+  tareas: (n: number) => (n === 1 ? "1 actividad" : `${n} actividades`),
   quitar: "Quitar",
-  tieneTareas: (n: number) => (n === 1 ? "Tiene 1 tarea." : `Tiene ${n} tareas.`),
+  tieneTareas: (n: number) => (n === 1 ? "Tiene 1 actividad." : `Tiene ${n} actividades.`),
   agregar: "Agregar categoría",
   totalExacto: "Total: 100 %",
   totalFaltan: (total: number, faltan: number) => `Total: ${total} %. Faltan ${faltan} %.`,
   totalSobran: (total: number, sobran: number) => `Total: ${total} %. Sobran ${sobran} %.`,
   guardar: "Guardar categorías",
   avisoGuardadas: "Categorías guardadas",
-  vacio: "Esta clase no tiene categorías. Sus tareas se califican por puntos.",
+  vacio: "Esta clase no tiene categorías. Sus actividades se califican por puntos.",
 } as const
 
 export const TEXTOS_CATEGORIAS_RECARGA =

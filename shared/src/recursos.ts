@@ -8,7 +8,7 @@ import {
   textoConContenidoSchema,
 } from "./clases.js"
 import { paginacionSchema } from "./enlaces-registro.js"
-import { trabajoQuerySchema } from "./tareas.js"
+import { temaDeTrabajoSchema } from "./tareas.js"
 
 // CLASES-03a (§D-6, RN-09). Un recurso es una publicación de tipo material con su bloque: el admin
 // publica en "aprendizaje" y un maestro en "docente" (S-01).
@@ -19,7 +19,7 @@ export const bloqueDeRecursoSchema = z.enum(BLOQUES_DE_RECURSO)
 // El tema se filtra igual que en "Actividades de aprendizaje": "sin-tema" o el id del tema.
 export const recursosQuerySchema = paginacionSchema.extend({
   bloque: z.enum(BLOQUES_DE_RECURSO, { error: "bloque: elige un bloque válido" }),
-  tema: trabajoQuerySchema.shape.tema,
+  tema: temaDeTrabajoSchema,
 })
 
 // Los ids de la ruta se pasan a minúsculas: un UUID es el mismo en mayúsculas.

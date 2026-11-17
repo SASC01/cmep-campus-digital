@@ -203,14 +203,31 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
   // (0). suma(restoAdmin) sigue en 2 (tabla-enlaces.tsx). Sigue protegiendo lo mismo: ningún
   // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
   // botones con espera cambien solo con el plan.
-  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 90 enEspera", () => {
+  // FORO-01c1 ronda 0 (C-11, §E8.2): de 90 a 91 enEspera=. Entra foros-view.tsx (1: «Ver más foros»).
+  // Las vistas del foro de 01c2 (foro-view.tsx, crear-foro-view.tsx y editar-foro-view.tsx) no llevan
+  // enEspera= y no se escriben en fijos: porArchivo solo cuenta los archivos que lo tienen (§E8.3).
+  // Sigue protegiendo lo mismo: ningún `disabled` en JSX, aria-busy y aria-disabled solo en Button, y
+  // que el número y el lugar de los botones con espera cambien solo con el plan.
+  // FORO-01d ronda 0 bis (C-13, §E7.5.5 y §E12.4): de 91 a 96 enEspera=. Entran
+  // formulario-de-participacion.tsx (1: «Publicar participación»), participaciones-del-foro.tsx (1:
+  // «Ver más participaciones») y replicas-de-participacion.tsx (3: «Sí, borrar …» de BorrarDelForo,
+  // para la participación y la réplica, «Publicar réplica» y «Ver más réplicas»), y
+  // participacion-del-foro.tsx y mi-participacion.tsx (0). Sigue protegiendo lo mismo: ningún
+  // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
+  // botones con espera cambien solo con el plan.
+  // FORO-01e ronda 0 bis (C-14, §E7.5.6 y §E13.2): de 96 a 99 enEspera=. Entran participantes-view.tsx
+  // (1: «Ver más alumnos»), participante-view.tsx (1: «Ver más participaciones») y
+  // components/devoluciones.tsx (1: «Ver más comentarios»). Sigue protegiendo lo mismo: ningún
+  // `disabled` en JSX, aria-busy y aria-disabled solo en Button, y que el número y el lugar de los
+  // botones con espera cambien solo con el plan.
+  it("V-06: ningún control con `disabled` en JSX; aria-busy y aria-disabled solo en Button; 99 enEspera", () => {
     expect(coincidencias(/\sdisabled(=|\s|\/?>|$)/, soloTsx)).toEqual([])
     // Atributos JSX, no la variante `aria-busy:` de las clases (button-variants.ts, §D-5).
     expect(rutasDe(coincidencias(/aria-(busy|disabled)=/, soloTsx))).toEqual([
       "/src/components/ui/button.tsx",
     ])
     const usos = coincidencias(/enEspera=/, soloTsx)
-    expect(usos).toHaveLength(90)
+    expect(usos).toHaveLength(99)
 
     const porArchivo = new Map<string, number>()
     for (const uso of usos) {
@@ -357,6 +374,8 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/clases/components/elemento-de-duda.tsx": 2,
       "/src/features/clases/components/respuestas-de-duda.tsx": 2,
       "/src/features/clases/components/formulario-respuesta.tsx": 1,
+      // FORO-01c1 ronda 0 (C-11, §E8.2): «Ver más foros».
+      "/src/features/clases/foros-view.tsx": 1,
       // C-4 de CALIFICACIONES-02b (§D-R0; §D-7): de 71 a 72, «Exportar a Excel». Sigue protegiendo que el número y el lugar de los botones con espera cambien solo con el plan.
       "/src/features/calificaciones/components/exportar-a-excel.tsx": 1,
       // ADMIN-01f ronda 0 (C-17): los de la gestión de usuarios (§D-11).
@@ -377,6 +396,17 @@ describe("ataque (DESIGN-01a r1): foco, espera y materiales (V-05 a V-07)", () =
       "/src/features/admin/movimientos-view.tsx": 1,
       "/src/features/admin/components/barra-de-lote.tsx": 0,
       "/src/features/admin/components/tabla-movimientos.tsx": 0,
+      // FORO-01d ronda 0 bis (C-13, §E12.4): participar, replicar y borrar en el foro.
+      "/src/features/tareas/components/formulario-de-participacion.tsx": 1,
+      "/src/features/tareas/components/participaciones-del-foro.tsx": 1,
+      "/src/features/tareas/components/replicas-de-participacion.tsx": 3,
+      "/src/features/tareas/components/participacion-del-foro.tsx": 0,
+      "/src/features/tareas/components/mi-participacion.tsx": 0,
+      // FORO-01e ronda 0 bis (C-14, §E13.2): los «Ver más» de «Participantes», de la participación de
+      // un alumno y de los comentarios de la devolución.
+      "/src/features/tareas/participantes-view.tsx": 1,
+      "/src/features/tareas/participante-view.tsx": 1,
+      "/src/features/tareas/components/devoluciones.tsx": 1,
     }
     for (const [ruta, cuantos] of Object.entries(fijos)) {
       expect(porArchivo.get(ruta) ?? 0, `enEspera= en ${ruta}`).toBe(cuantos)

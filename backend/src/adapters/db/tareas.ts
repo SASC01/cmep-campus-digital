@@ -1,3 +1,6 @@
+import type { SeccionDeTrabajo } from "@campus/shared"
+
+import { TEXTOS_POR_ACTIVIDAD, type Actividad } from "../../core/actividades.js"
 import {
   puedeBorrarTarea,
   puedeEditarTarea,
@@ -16,6 +19,7 @@ import {
   validarCategoriaRequerida,
   validarFechaLimite,
 } from "../../core/tareas/tareas.js"
+import { esActividadDeTipo } from "./actividades.js"
 import { SELECT_ARCHIVO, VIGENCIA_PENDIENTE_MS, type ArchivoDb } from "./archivos.js"
 import {
   ejecutorSqlDe,
@@ -63,7 +67,8 @@ export interface CriterioNuevo {
 
 export interface ElementoDeTrabajoDb {
   id: string
-  tipo: "material" | "tarea"
+  // FORO-01b (§D-3.3): con "actividades-con-foros", también foros.
+  tipo: "material" | "tarea" | "foro"
   titulo: string
   autor: AutorDb
   creadoEn: Date
@@ -82,8 +87,9 @@ export interface ListaTrabajoDb {
   siguienteCursor: string | null
 }
 
-const errorTareaNoEncontrada = (): AppError =>
-  new AppError("TAREA_NO_ENCONTRADA", "Esa tarea ya no existe.", 404)
+// FORO-01a (§D-2.4): el mismo código, con el texto de la actividad.
+const errorTareaNoEncontrada = (actividad: Actividad = "tarea"): AppError =>
+  new AppError("TAREA_NO_ENCONTRADA", TEXTOS_POR_ACTIVIDAD[actividad].tareaNoEncontrada, 404)
 
 const errorTemaNoEncontrado = (): AppError =>
   new AppError("TEMA_NO_ENCONTRADO", "Ese tema ya no existe.", 404)
@@ -121,16 +127,40 @@ const SELECT_AUTOR = { select: { id: true, nombre: true, rol: true } } as const
 // Los elementos que se agrupan en un tema: materiales y tareas (los anuncios no llevan tema).
 const TIPOS_DE_TRABAJO = ["material", "tarea"] as const
 
+// FORO-01b (§D-3.3, E1-4): lo que trae cada sección de "Trabajo". Sin sección, lo de hoy; un foro solo
+// entra con "actividades-con-foros", también como cursor.
+const TIPOS_DE_LA_SECCION: Record<
+  NonNullable<SeccionDeTrabajo> | "todo",
+  readonly ("material" | "tarea" | "foro")[]
+> = {
+  todo: TIPOS_DE_TRABAJO,
+  actividades: ["tarea"],
+  "actividades-con-foros": ["tarea", "foro"],
+}
+
+// El where de la página ya excluye el anuncio: si llegara uno, es un error explícito.
+const tipoDeTrabajo = (tipo: string): ElementoDeTrabajoDb["tipo"] => {
+  if (tipo === "material" || tipo === "tarea" || tipo === "foro") return tipo
+  throw new AppError("ERROR_INTERNO", "Trabajo de clase trajo un tipo que no admite.", 500)
+}
+
 // Lectura de la tarea (§D-4, "Ver"). Las sentencias van una tras otra con `db`: la tarea, su
 // publicación (relación obligatoria: título, instrucciones y autor, con el tema), la categoría, los
 // criterios por orden, los archivos confirmados de la publicación y los maestros de la clase (para
 // puedeEditar y puedeBorrar). No escribe nada. null: la tarea no existe en esa clase.
+// FORO-01a (§D-3.3): con `tipo` (por omisión "tarea"), solo encuentra esa actividad: una ruta de
+// tarea con el id de un foro, o al revés, es null.
 const leerTareaCon = async (
   db: Ejecutor,
-  { claseId, tareaId, actor }: { claseId: string; tareaId: string; actor: ParticipanteDeAutoria },
+  {
+    claseId,
+    tareaId,
+    actor,
+    tipo = "tarea",
+  }: { claseId: string; tareaId: string; actor: ParticipanteDeAutoria; tipo?: Actividad },
 ): Promise<TareaDetalleDb | null> => {
   const tarea = await db.tarea.findFirst({
-    where: { id: tareaId, claseId },
+    where: { id: tareaId, claseId, publicacion: { tipo } },
     select: {
       id: true,
       fechaLimite: true,
@@ -195,7 +225,7 @@ const leerTareaCon = async (
 // su publicación dejaría la respuesta sin título ni autor. Anidada en una transacción de escritura
 // (crearTarea y editarTarea responden con leerTarea(…, tx)), la opción se ignora.
 export const leerTarea = (
-  params: { claseId: string; tareaId: string; actor: ParticipanteDeAutoria },
+  params: { claseId: string; tareaId: string; actor: ParticipanteDeAutoria; tipo?: Actividad },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<TareaDetalleDb | null> =>
   enTransaccion(ejecutor, (tx) => leerTareaCon(tx, params), { instantaneaUnica: true })
@@ -221,7 +251,8 @@ const asegurarReferencias = async (
     claseId,
     categoriaId,
     temaId,
-  }: { claseId: string; categoriaId: string | null; temaId: string | null },
+    actividad,
+  }: { claseId: string; categoriaId: string | null; temaId: string | null; actividad: Actividad },
 ): Promise<void> => {
   if (categoriaId !== null) {
     if (!(await bloquearCategoriaParaUsar(tx, { categoriaId, claseId }))) {
@@ -229,7 +260,7 @@ const asegurarReferencias = async (
     }
   } else {
     const categoriasEnLaClase = await tx.categoria.count({ where: { claseId } })
-    validarCategoriaRequerida({ categoriaId, categoriasEnLaClase })
+    validarCategoriaRequerida({ categoriaId, categoriasEnLaClase, actividad })
   }
   if (temaId !== null && !(await bloquearTemaParaUsar(tx, { temaId, claseId }))) {
     throw errorTemaNoEncontrado()
@@ -280,6 +311,8 @@ export interface DatosDeTarea {
 // archivos y alGuardar (el handler encola TAREA_CREADA y, si hay momento, RECORDATORIO_24H con el
 // ejecutor SQL de esta misma transacción). Si algo lanza, no queda tarea, publicación, criterio,
 // archivo confirmado ni trabajo.
+// FORO-01a (§D-3.3): con `tipo: "foro"`, la publicación es un foro y su fila de tareas no pide
+// adjuntos (un foro no se entrega con archivos).
 export const crearTarea = (
   {
     id,
@@ -287,11 +320,13 @@ export const crearTarea = (
     autor,
     trabajoId,
     archivos = [],
+    tipo = "tarea",
     ...datos
   }: DatosDeTarea & {
     id: string
     claseId: string
     autor: ParticipanteDeAutoria
+    tipo?: Actividad
     // Id del RECORDATORIO_24H si se programa; null si el momento ya pasó.
     trabajoId: string | null
     archivos?: readonly ArchivoDb[]
@@ -304,13 +339,14 @@ export const crearTarea = (
       claseId,
       categoriaId: datos.categoriaId,
       temaId: datos.temaId,
+      actividad: tipo,
     })
     await tx.publicacion.create({
       data: {
         id,
         claseId,
         autorId: autor.id,
-        tipo: "tarea",
+        tipo,
         titulo: datos.titulo,
         texto: datos.instrucciones,
         temaId: datos.temaId,
@@ -325,7 +361,7 @@ export const crearTarea = (
         fechaLimite: datos.fechaLimite,
         puntos: datos.puntos,
         aceptaTardias: datos.aceptaTardias,
-        requiereAdjuntos: datos.requiereAdjuntos,
+        requiereAdjuntos: tipo === "foro" ? false : datos.requiereAdjuntos,
         trabajoId,
       },
       select: { id: true },
@@ -342,8 +378,8 @@ export const crearTarea = (
     }
     await confirmarArchivos(tx, { archivos, claseId, subidoPor: autor.id, publicacionId: id })
     await alGuardar(ejecutorSqlDe(tx))
-    const creada = await leerTarea({ claseId, tareaId: id, actor: autor }, tx)
-    if (creada === null) throw errorTareaNoEncontrada()
+    const creada = await leerTarea({ claseId, tareaId: id, actor: autor, tipo }, tx)
+    if (creada === null) throw errorTareaNoEncontrada(tipo)
     return creada
   })
 
@@ -364,13 +400,13 @@ interface FilaBloqueadaConVersion extends FilaBloqueada {
 // para la regla de autoría de las tareas (P-04 b).
 const autorYPertenencia = async (
   tx: Prisma.TransactionClient,
-  { claseId, autorId }: { claseId: string; autorId: string },
+  { claseId, autorId, actividad }: { claseId: string; autorId: string; actividad: Actividad },
 ): Promise<{ autor: ParticipanteDeAutoria; sigueEnLaClase: boolean }> => {
   const autor = await tx.usuario.findUnique({
     where: { id: autorId },
     select: { id: true, rol: true },
   })
-  if (autor === null) throw errorTareaNoEncontrada()
+  if (autor === null) throw errorTareaNoEncontrada(actividad)
   const asignacion = await tx.maestroDeClase.findUnique({
     where: { claseId_maestroId: { claseId, maestroId: autorId } },
     select: { maestroId: true },
@@ -390,6 +426,8 @@ const autorYPertenencia = async (
 // entregas calificadas y la rúbrica actual; con calificaciones, cambiar los puntos o la rúbrica es 409
 // TAREA_CON_CALIFICACIONES sin escribir nada. Una rúbrica idéntica nunca se reemplaza (sus ids se
 // conservan para los puntajes); una distinta, sin calificaciones, sí.
+// FORO-01a (§D-3.3): con `tipo`, después del bloqueo y antes de la autoría se comprueba el tipo de la
+// publicación: el id de otra actividad es null sin escribir nada.
 export const editarTarea = (
   {
     claseId,
@@ -400,11 +438,13 @@ export const editarTarea = (
     idRecordatorioNuevo,
     archivoIds,
     archivosNuevos,
+    tipo = "tarea",
     ...datos
   }: DatosDeTarea & {
     claseId: string
     tareaId: string
     actor: ParticipanteDeAutoria
+    tipo?: Actividad
     ahora: Date
     // La versión con que se abrió el formulario (P-05 a′).
     version: number
@@ -424,13 +464,15 @@ export const editarTarea = (
       WHERE t.id = ${tareaId}::uuid AND t.clase_id = ${claseId}::uuid
       FOR NO KEY UPDATE OF t`
     if (fila === undefined) return null
+    if (!(await esActividadDeTipo(tx, { id: tareaId, claseId, tipo }))) return null
 
     const { autor, sigueEnLaClase } = await autorYPertenencia(tx, {
       claseId,
       autorId: fila.autor_id,
+      actividad: tipo,
     })
     if (!puedeEditarTarea(actor, autor, sigueEnLaClase)) throw errorEdicionNoPermitida()
-    exigirVersion({ leida: version, actual: fila.version }, tareaModificada)
+    exigirVersion({ leida: version, actual: fila.version }, () => tareaModificada(tipo))
     const calificadas = await tx.entrega.count({ where: { tareaId, estado: "calificado" } })
     const rubricaActual = await tx.criterioRubrica.findMany({
       where: { tareaId },
@@ -443,12 +485,14 @@ export const editarTarea = (
       puntosNuevos: datos.puntos,
       rubricaActual,
       rubricaNueva: datos.rubrica,
+      actividad: tipo,
     })
     validarFechaLimite({ nueva: datos.fechaLimite, anterior: fila.fecha_limite, ahora })
     await asegurarReferencias(tx, {
       claseId,
       categoriaId: datos.categoriaId,
       temaId: datos.temaId,
+      actividad: tipo,
     })
 
     const plan = planDeRecordatorio({
@@ -465,7 +509,7 @@ export const editarTarea = (
         : fila.trabajo_id
 
     await tx.publicacion.updateMany({
-      where: { id: tareaId, claseId, tipo: "tarea" },
+      where: { id: tareaId, claseId, tipo },
       data: { titulo: datos.titulo, texto: datos.instrucciones, temaId: datos.temaId },
     })
     await tx.tarea.updateMany({
@@ -474,7 +518,7 @@ export const editarTarea = (
         fechaLimite: datos.fechaLimite,
         puntos: datos.puntos,
         aceptaTardias: datos.aceptaTardias,
-        requiereAdjuntos: datos.requiereAdjuntos,
+        requiereAdjuntos: tipo === "foro" ? false : datos.requiereAdjuntos,
         categoriaId: datos.categoriaId,
         trabajoId,
         version: { increment: 1 },
@@ -526,7 +570,7 @@ export const editarTarea = (
     })
 
     await alReprogramar(ejecutorSqlDe(tx), plan)
-    return leerTarea({ claseId, tareaId, actor }, tx)
+    return leerTarea({ claseId, tareaId, actor, tipo }, tx)
   })
 
 // Las entregas que impiden borrar sin confirmación (S-06 modificada): entregado y calificado.
@@ -541,17 +585,21 @@ const ESTADOS_QUE_CUENTAN: EstadoEntrega[] = ["entregado", "calificado"]
 // 500 si quedara uno) y los de la publicación, y borra la publicación: la cascada se lleva la tarea,
 // sus criterios, sus entregas (también las asignado) y sus hilos privados. alBorrar cancela los
 // trabajos con el id que tenía en trabajo_id. false: no existe. confirmarEntregas ausente es false.
+// FORO-01a (§D-3.3): con `tipo`, después del bloqueo y antes de la autoría y de cualquier escritura se
+// comprueba el tipo: el id de otra actividad es false y no se descarta ningún archivo.
 export const borrarTarea = (
   {
     claseId,
     tareaId,
     actor,
     confirmarEntregas = false,
+    tipo = "tarea",
   }: {
     claseId: string
     tareaId: string
     actor: ParticipanteDeAutoria
     confirmarEntregas?: boolean
+    tipo?: Actividad
   },
   alBorrar: (sql: EjecutorSql, trabajoId: string | null) => Promise<void>,
   ejecutor: Ejecutor = obtenerDb(),
@@ -564,10 +612,12 @@ export const borrarTarea = (
       WHERE t.id = ${tareaId}::uuid AND t.clase_id = ${claseId}::uuid
       FOR UPDATE OF t`
     if (fila === undefined) return false
+    if (!(await esActividadDeTipo(tx, { id: tareaId, claseId, tipo }))) return false
 
     const { autor, sigueEnLaClase } = await autorYPertenencia(tx, {
       claseId,
       autorId: fila.autor_id,
+      actividad: tipo,
     })
     if (!puedeBorrarTarea(actor, autor, sigueEnLaClase)) throw errorBorradoNoPermitido()
 
@@ -575,7 +625,12 @@ export const borrarTarea = (
     const entregas = await tx.entrega.count({
       where: { tareaId, estado: { in: ESTADOS_QUE_CUENTAN } },
     })
-    exigirBorradoConEntregasPermitido({ rolDelActor: actor.rol, entregas, confirmarEntregas })
+    exigirBorradoConEntregasPermitido({
+      rolDelActor: actor.rol,
+      entregas,
+      confirmarEntregas,
+      actividad: tipo,
+    })
 
     await tx.archivo.updateMany({
       where: { claseId, entrega: { tareaId } },
@@ -586,7 +641,7 @@ export const borrarTarea = (
       data: { estado: "descartado", publicacionId: null },
     })
     const { count } = await tx.publicacion.deleteMany({
-      where: { id: tareaId, claseId, tipo: "tarea" },
+      where: { id: tareaId, claseId, tipo },
     })
     if (count === 0) return false
     await alBorrar(ejecutorSqlDe(tx), fila.trabajo_id)
@@ -616,7 +671,8 @@ const listarTrabajoCon = async (
     limite: number
     alumnoId?: string | null
     // CLASES-03a (§D-3.3): "Actividades de aprendizaje" pide solo tareas; sin ella, lo de hoy.
-    seccion?: "actividades" | undefined
+    // FORO-01b (§D-3.3, E1-4): "actividades-con-foros" (conForos=si) pide tareas y foros.
+    seccion?: SeccionDeTrabajo
   },
 ): Promise<ListaTrabajoDb> => {
   const temaId = tema === "sin-tema" ? null : tema
@@ -625,7 +681,7 @@ const listarTrabajoCon = async (
     if (existe === null) throw errorTemaNoEncontrado()
   }
   // El mismo filtro vale para el cursor: con la sección, un material como cursor es 400.
-  const tipos = seccion === "actividades" ? (["tarea"] as const) : TIPOS_DE_TRABAJO
+  const tipos = TIPOS_DE_LA_SECCION[seccion ?? "todo"]
   const donde = { claseId, temaId, tipo: { in: [...tipos] } }
   if (cursor !== undefined) {
     const delCursor = await db.publicacion.findFirst({
@@ -668,7 +724,8 @@ const listarTrabajoCon = async (
       ])
     }
   }
-  const idsDeTareas = pagina.filter((fila) => fila.tipo === "tarea").map((fila) => fila.id)
+  // Las tareas y los foros de la página: los dos tienen la entrega del alumno.
+  const idsDeTareas = pagina.filter((fila) => fila.tipo !== "material").map((fila) => fila.id)
   const entregaPorTarea = new Map<string, { estado: EstadoEntrega; conRetraso: boolean }>()
   if (alumnoId !== null && idsDeTareas.length > 0) {
     const entregas = await db.entrega.findMany({
@@ -682,11 +739,11 @@ const listarTrabajoCon = async (
   return {
     elementos: pagina.map((fila) => {
       const esMaterial = fila.tipo === "material"
-      // Inalcanzable: el CHECK publicaciones_titulo_segun_tipo exige título a materiales y tareas.
+      // Inalcanzable: el CHECK publicaciones_titulo_segun_tipo exige título a materiales, tareas y foros.
       if (fila.titulo === null) throw errorElementoSinTitulo()
       return {
         id: fila.id,
-        tipo: esMaterial ? "material" : "tarea",
+        tipo: tipoDeTrabajo(fila.tipo),
         titulo: fila.titulo,
         autor: fila.autor,
         creadoEn: fila.creadoEn,
@@ -712,7 +769,7 @@ export const listarTrabajo = (
     cursor: string | undefined
     limite: number
     alumnoId?: string | null
-    seccion?: "actividades" | undefined
+    seccion?: SeccionDeTrabajo
   },
   ejecutor: Ejecutor = obtenerDb(),
 ): Promise<ListaTrabajoDb> =>

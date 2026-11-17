@@ -1,5 +1,12 @@
 import {
   comentarioPrivadoRespuestaSchema,
+  foroRespuestaSchema,
+  listaParticipacionesDeAlumnoRespuestaSchema,
+  listaParticipacionesRespuestaSchema,
+  listaReplicasRespuestaSchema,
+  miParticipacionRespuestaSchema,
+  participacionPublicadaRespuestaSchema,
+  replicaPublicadaRespuestaSchema,
   entregaDeAlumnoRespuestaSchema,
   listaComentariosPrivadosRespuestaSchema,
   listaEntregasRespuestaSchema,
@@ -8,31 +15,41 @@ import {
   tareaRespuestaSchema,
 } from "@campus/shared"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState, type RefObject } from "react"
 import { useLocation } from "react-router"
 import { toast } from "sonner"
 
 import { useMontado } from "@/components/clase/hooks"
+import { useFocoAlCargarMas } from "@/components/foco/hooks"
+import { focoPerdido } from "@/components/foco/lib"
+import { esErrorDeCursor } from "@/lib/errores-de-api"
 import { baseDeClase, perspectivaDeRuta } from "@/lib/ruta-de-clase"
 import { api, esApiError } from "@/services/apiClient"
 import { clavePrefijoDeCalificaciones } from "@/services/calificacionesService"
 import { claveClaseDetalle, clavePublicaciones } from "@/services/clasesService"
 import {
   claveCategorias,
+  claveForo,
+  claveListaDeForos,
   clavePrefijoDelTrabajo,
   claveTarea,
   claveTemas,
   consultaCategorias,
+  consultaForo,
   consultaTarea,
   consultaTemas,
 } from "@/services/trabajoService"
 
 import {
+  CODIGOS_QUE_DEJAN_VIEJA_LA_ACTIVIDAD,
   CODIGOS_QUE_RENUEVAN_LA_TAREA,
   OPCIONES_QUE_CAMBIARON_POR_CODIGO,
   TEXTOS_CALIFICAR,
+  TEXTOS_DETALLE_FORO,
   TEXTOS_DETALLE_TAREA,
+  TEXTOS_FORMULARIO_FORO,
   TEXTOS_FORMULARIO_TAREA,
+  TEXTOS_PARTICIPACIONES,
   TEXTOS_TU_TRABAJO,
 } from "./data"
 import {
@@ -40,21 +57,50 @@ import {
   claveHilo,
   claveListaDeEntregas,
   claveMiEntrega,
+  claveDevoluciones,
+  claveListaDeParticipantes,
+  claveMiParticipacion,
+  claveMisDevoluciones,
+  claveParticipaciones,
+  claveParticipacionesDeAlumno,
+  claveParticipante,
+  clavePrefijoDeParticipantes,
+  claveReplicas,
   clavePrefijoDeEntregas,
   errorDeEnlacesDeApi,
   errorDeTextoDeApi,
   erroresDeLaTareaDeApi,
+  erroresDelForoDeApi,
   esConflictoDeCalificacion,
   esClaseArchivada,
   esConflictoDeEntrega,
   erroresDeCalificacionDeApi,
   errorQueRedirigeElCliente,
   errorQueReemplazaLaVista,
+  errorQueReemplazaLaVistaDelForo,
+  errorDelTextoDeLaParticipacion,
+  esConflictoDeParticipacion,
+  mensajeAlPublicarParticipacion,
+  mensajeDeConsultaForo,
   esEntregaVacia,
   esTareaConEntregas,
+  mensajeDeErrorForo,
   mensajeDeErrorTareas,
   mensajeDelAvisoDeCalificar,
   mensajeDelCampoDeCalificacion,
+  rutaDeBorrarForo,
+  rutaDeCalificacionDeParticipante,
+  rutaDeLasParticipaciones,
+  rutaDePaginaDeDevoluciones,
+  rutaDePaginaDeMisDevoluciones,
+  rutaDePaginaDeParticipacionesDeAlumno,
+  rutaDePaginaDeParticipantes,
+  rutaDeParticipante,
+  rutaDeLasReplicas,
+  rutaDeMiParticipacion,
+  rutaDePaginaDeParticipaciones,
+  rutaDePaginaDeReplicas,
+  rutaDeUnaParticipacion,
   rutaDeBorrarTarea,
   rutaDeCalificacion,
   rutaDeEntregaDeAlumno,
@@ -64,8 +110,17 @@ import {
   rutaDePaginaDelHilo,
 } from "./lib"
 import type {
+  ConsultaConVerMas,
   CrearComentario,
+  CrearParticipacion,
+  CrearReplica,
+  ListaParticipacionesRespuesta,
+  ListaReplicasRespuesta,
+  OpcionesDeVerMas,
+  VariablesDeBorrarParticipacion,
+  CrearForo,
   CrearTarea,
+  EditarForo,
   EditarTarea,
   Entregar,
   FalloDeLaConsulta,
@@ -91,6 +146,58 @@ export const useTarea = (claseId: string, tareaId: string) =>
 export const useTemasDeLaClase = (claseId: string) => useQuery(consultaTemas(claseId))
 
 export const useCategoriasDeLaClase = (claseId: string) => useQuery(consultaCategorias(claseId))
+
+// FORO-01c2 (§D-8.6, T-02 y T-03 de CLASES-03d): al editar, una lista de opciones (temas o categorías)
+// solo cuenta si la confirma una lectura que salió DESPUÉS de abrir el formulario. Al abrir se pide; si ya
+// había una lectura en vuelo (de otra vista, salida antes), se cancela y sale otra: su respuesta vieja no
+// confirma. "Después" se cuenta con el contador de datos de la consulta, nunca con relojes; cualquier
+// respuesta correcta posterior (también tras una lectura fallida) confirma. Al crear, la de siempre.
+const useListaConfirmadaAlAbrir = (
+  queryKey: readonly unknown[],
+  consulta: { refetch: (opciones: { cancelRefetch: boolean }) => Promise<unknown> },
+  editar: boolean,
+): boolean => {
+  const queryClient = useQueryClient()
+  const [alAbrir] = useState(() => {
+    const estado = queryClient.getQueryState(queryKey)
+    return { datos: estado?.dataUpdateCount ?? 0, previa: estado?.fetchStatus === "fetching" }
+  })
+  // El contador de datos a partir del cual una respuesta confirma; null mientras se cancela la previa.
+  const [desde, setDesde] = useState<number | null>(alAbrir.previa ? null : alAbrir.datos)
+  const pidioRef = useRef(false)
+
+  useEffect(() => {
+    if (!editar || pidioRef.current) return
+    pidioRef.current = true
+    const pedir = async () => {
+      if (alAbrir.previa) {
+        await queryClient.cancelQueries({ queryKey, exact: true })
+        setDesde(queryClient.getQueryState(queryKey)?.dataUpdateCount ?? 0)
+      }
+      await consulta.refetch({ cancelRefetch: false })
+    }
+    void pedir()
+  }, [editar, alAbrir, queryClient, queryKey, consulta])
+
+  if (!editar) return true
+  const datosAhora = queryClient.getQueryState(queryKey)?.dataUpdateCount ?? 0
+  return desde !== null && datosAhora > desde
+}
+
+// Las categorías y los temas del formulario de una actividad, con si cada lista está confirmada (al
+// crear, siempre). "all": el formulario se vuelve a pintar al terminar cada lectura, aunque traiga los
+// mismos datos, y así lee el contador de datos al día.
+export const useOpcionesDelFormulario = (claseId: string, editar: boolean) => {
+  const categorias = useQuery({ ...consultaCategorias(claseId), notifyOnChangeProps: "all" })
+  const temas = useQuery({ ...consultaTemas(claseId), notifyOnChangeProps: "all" })
+  const categoriasConfirmadas = useListaConfirmadaAlAbrir(
+    claveCategorias(claseId),
+    categorias,
+    editar,
+  )
+  const temasConfirmados = useListaConfirmadaAlAbrir(claveTemas(claseId), temas, editar)
+  return { categorias, temas, categoriasConfirmadas, temasConfirmados }
+}
 
 // Crear, editar o borrar una tarea cambia el muro (exacto), "Trabajo de clase" (todas sus listas por
 // prefijo), los temas y las categorías (sus conteos) y el detalle.
@@ -168,6 +275,46 @@ const marcarViejoElDetalleAnteClaseArchivada = (
   )
 }
 
+// FORO-01c2 (§D-8.6, T-04 de CLASES-03d; §E7.3 "Frontend", punto 8 b): un 409 de guardar que dice que
+// la actividad en caché ya no es la del servidor la deja vieja sin pedirla. Con la vista montada, la
+// recarga la hace la vista (una sola petición, §7.21); con la vista desmontada, o con la clase ya
+// archivada (la vista no recarga), volver a abrir la edición pide la versión del servidor.
+const marcarViejaLaActividadTrasConflicto = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  clave: readonly unknown[],
+  error: unknown,
+) => {
+  if (!esApiError(error) || !CODIGOS_QUE_DEJAN_VIEJA_LA_ACTIVIDAD.includes(error.codigo)) return
+  void queryClient.invalidateQueries({ queryKey: clave, refetchType: "none" })
+}
+
+// FORO-01c2 (§D-8.6, T-05 de CLASES-03d): lo que se renueva tras un error al borrar. Con la vista de la
+// actividad montada, lo de siempre (`conLaVista`: la regla T-11, que la vuelve a pedir; PR-1D05). Sin
+// nadie que la mire (la persona se fue con el borrado en vuelo): un 404 la saca de la caché, así que
+// "atrás" no pinta la que ya no existe, y marca viejas las listas (`listas`); un permiso o un acceso
+// que cambió la deja vieja sin pedirla.
+const renovarTrasErrorAlBorrar = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  clave: readonly unknown[],
+  error: unknown,
+  conLaVista: () => Promise<void>,
+  listas: () => Promise<void>,
+) => {
+  const consulta = queryClient.getQueryCache().find({ queryKey: clave, exact: true })
+  if (consulta !== undefined && consulta.getObserversCount() > 0) {
+    await conLaVista()
+    return
+  }
+  if (!esApiError(error)) return
+  if (error.codigo === "TAREA_NO_ENCONTRADA") {
+    queryClient.removeQueries({ queryKey: clave })
+    await listas()
+    return
+  }
+  if (!CODIGOS_QUE_RENUEVAN_LA_TAREA.includes(error.codigo)) return
+  await queryClient.invalidateQueries({ queryKey: clave, refetchType: "none" })
+}
+
 // Los avisos viven en el hook y no en los callbacks de mutate (patrón T-30): corren aunque la vista
 // ya no esté montada. Un error de un campo lo marca el formulario; los demás, un aviso.
 export const useCrearTarea = (claseId: string) => {
@@ -209,6 +356,7 @@ export const useEditarTarea = (claseId: string, tareaId: string) => {
     },
     onError: (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      marcarViejaLaActividadTrasConflicto(queryClient, claveTarea(claseId, tareaId), error)
       void pedirDeNuevoLasOpciones(queryClient, claseId, error)
       void pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
       if (erroresDeLaTareaDeApi(error)) return
@@ -243,7 +391,13 @@ export const useBorrarTarea = (claseId: string, tareaId: string) => {
     },
     onError: (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
-      void pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error)
+      void renovarTrasErrorAlBorrar(
+        queryClient,
+        claveTarea(claseId, tareaId),
+        error,
+        () => pedirDeNuevoLaTarea(queryClient, claseId, tareaId, error),
+        () => invalidarTrasCambiar(queryClient, claseId, null),
+      )
       if (esTareaConEntregas(error) && montado.current) return
       if (errorQueRedirigeElCliente(error)) return
       toast.error(mensajeDeErrorTareas(error))
@@ -264,15 +418,18 @@ export const useBorrarTarea = (claseId: string, tareaId: string) => {
 // entrega vuelve bien), se anuncia una vez como siempre.
 const ultimoFalloAvisado = new WeakMap<object, string>()
 
-export const useAvisoDeRecargaFallida = (
-  claseId: string,
-  tareaId: string,
+// FORO-01c2 (§E7.3 "Frontend", punto 5): la variante que recibe la clave de la consulta (la de la tarea o
+// la del foro). La clave se compara por su texto para que una clave nueva en cada render no repita los
+// efectos.
+const useAvisoDeRecargaFallidaDe = (
+  clave: readonly unknown[],
   activo: boolean,
   fallo: FalloDeLaConsulta,
   texto: string,
-  callado = false,
+  callado: boolean,
 ) => {
   const queryClient = useQueryClient()
+  const claveComoTexto = JSON.stringify(clave)
   const marca = `${fallo.errorUpdateCount}:${fallo.errorUpdatedAt}`
   const alSalirRef = useRef({ callado, marca })
   useEffect(() => {
@@ -280,19 +437,17 @@ export const useAvisoDeRecargaFallida = (
   })
   useEffect(() => {
     const alSalir = alSalirRef
+    const queryKey = JSON.parse(claveComoTexto) as unknown[]
     return () => {
       if (!alSalir.current.callado) return
-      const consulta = queryClient
-        .getQueryCache()
-        .find({ queryKey: claveTarea(claseId, tareaId), exact: true })
+      const consulta = queryClient.getQueryCache().find({ queryKey, exact: true })
       if (consulta !== undefined) ultimoFalloAvisado.set(consulta, alSalir.current.marca)
     }
-  }, [queryClient, claseId, tareaId])
+  }, [queryClient, claveComoTexto])
   useEffect(() => {
     if (!activo) return
-    const consulta = queryClient
-      .getQueryCache()
-      .find({ queryKey: claveTarea(claseId, tareaId), exact: true })
+    const queryKey = JSON.parse(claveComoTexto) as unknown[]
+    const consulta = queryClient.getQueryCache().find({ queryKey, exact: true })
     if (consulta !== undefined) {
       if (ultimoFalloAvisado.get(consulta) === marca) return
       ultimoFalloAvisado.set(consulta, marca)
@@ -308,7 +463,19 @@ export const useAvisoDeRecargaFallida = (
       }
     }
     toast.error(texto)
-  }, [activo, marca, texto, queryClient, claseId, tareaId])
+  }, [activo, marca, texto, queryClient, claveComoTexto])
+}
+
+export const useAvisoDeRecargaFallida = (
+  claseId: string,
+  tareaId: string,
+  activo: boolean,
+  fallo: FalloDeLaConsulta,
+  texto: string,
+  callado = false,
+) => {
+  const queryClient = useQueryClient()
+  useAvisoDeRecargaFallidaDe(claveTarea(claseId, tareaId), activo, fallo, texto, callado)
 
   // ENTREGAS-01e, ronda 1 (T-01): el error al descargar un adjunto en una vista de la tarea (la tarea,
   // "Tu trabajo" o la entrega de un alumno), para `alFallarLaDescarga` de AdjuntosDePublicacion. Si
@@ -539,6 +706,14 @@ export const useCalificarEntrega = (claseId: string, tareaId: string, alumnoId: 
     onError: (error, { cuerpo }) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
       if (esConflictoDeCalificacion(error)) {
+        // FORO-1E41 (§E13.3, R-01e-12): la entrega en caché ya no es la del servidor; queda vieja sin
+        // pedirla. Con la vista montada y la clase activa, la vista la vuelve a pedir una sola vez; con la
+        // vista desmontada o la clase archivada, volver a abrirla la pide.
+        void queryClient.invalidateQueries({
+          queryKey: claveEntregaDeAlumno(claseId, tareaId, alumnoId),
+          exact: true,
+          refetchType: "none",
+        })
         toast.error(mensajeDeErrorTareas(error))
         return
       }
@@ -556,6 +731,717 @@ export const useCalificarEntrega = (claseId: string, tareaId: string, alumnoId: 
       }
       // Ronda 2 (T-04): sin el prefijo de ruta que el panel no reconoce.
       avisarDelErrorDeLaEntrega(queryClient, claseId, tareaId, error, mensajeDelAvisoDeCalificar)
+    },
+  })
+}
+
+// FORO-01c2 (§D-8.3, §D-10). Crear, editar, ver y borrar un foro. Los avisos viven en el gancho (corren
+// aunque la vista ya no esté montada), como los de la tarea.
+export const useForo = (claseId: string, foroId: string) => useQuery(consultaForo(claseId, foroId))
+
+// Crear, editar o borrar un foro cambia la lista de "Foro", "Actividades de aprendizaje" (sus listas por
+// prefijo), los temas y las categorías (sus conteos) y las calificaciones de la clase (su columna).
+const invalidarTrasCambiarElForo = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+) => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: claveListaDeForos(claseId) }),
+    queryClient.invalidateQueries({ queryKey: clavePrefijoDelTrabajo(claseId) }),
+    queryClient.invalidateQueries({ queryKey: claveTemas(claseId) }),
+    queryClient.invalidateQueries({ queryKey: claveCategorias(claseId) }),
+    queryClient.invalidateQueries({ queryKey: clavePrefijoDeCalificaciones(claseId) }),
+  ])
+}
+
+// La regla T-11 con el foro: si el servidor dice que el foro ya no existe, ya no se puede editar o borrar,
+// o se perdió el acceso, el foro en caché está viejo y se vuelve a pedir; con un 404 salió además de las
+// listas.
+const pedirDeNuevoElForo = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  foroId: string,
+  error: unknown,
+) => {
+  if (!esApiError(error)) return
+  if (!CODIGOS_QUE_RENUEVAN_LA_TAREA.includes(error.codigo)) return
+  if (error.codigo === "TAREA_NO_ENCONTRADA") {
+    await Promise.all([
+      invalidarTrasCambiarElForo(queryClient, claseId),
+      queryClient.invalidateQueries({ queryKey: claveForo(claseId, foroId) }),
+    ])
+    return
+  }
+  await queryClient.invalidateQueries({ queryKey: claveForo(claseId, foroId) })
+}
+
+export const useCrearForo = (claseId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: CrearForo) =>
+      api(`/api/clases/${claseId}/foros`, {
+        method: "POST",
+        body: datos,
+        schema: foroRespuestaSchema,
+      }),
+    onSuccess: () => {
+      void invalidarTrasCambiarElForo(queryClient, claseId)
+      toast.success(TEXTOS_FORMULARIO_FORO.avisoPublicado)
+    },
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      void pedirDeNuevoLasOpciones(queryClient, claseId, error)
+      if (erroresDelForoDeApi(error)) return
+      if (errorQueRedirigeElCliente(error)) return
+      toast.error(mensajeDeErrorForo(error))
+    },
+  })
+}
+
+export const useEditarForo = (claseId: string, foroId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: EditarForo) =>
+      api(`/api/clases/${claseId}/foros/${foroId}`, {
+        method: "PUT",
+        body: datos,
+        schema: foroRespuestaSchema,
+      }),
+    onSuccess: (respuesta) => {
+      queryClient.setQueryData(claveForo(claseId, foroId), respuesta)
+      void invalidarTrasCambiarElForo(queryClient, claseId)
+      toast.success(TEXTOS_FORMULARIO_TAREA.avisoGuardada)
+    },
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      marcarViejaLaActividadTrasConflicto(queryClient, claveForo(claseId, foroId), error)
+      void pedirDeNuevoLasOpciones(queryClient, claseId, error)
+      void pedirDeNuevoElForo(queryClient, claseId, foroId, error)
+      if (erroresDelForoDeApi(error)) return
+      if (errorQueRedirigeElCliente(error)) return
+      toast.error(mensajeDeErrorForo(error))
+    },
+  })
+}
+
+// Como useBorrarTarea: un 409 TAREA_CON_ENTREGAS no avisa si la confirmación sigue montada (el mensaje
+// va en línea, en el segundo paso). Al borrar, el foro sale de la caché.
+export const useBorrarForo = (claseId: string, foroId: string) => {
+  const queryClient = useQueryClient()
+  const montado = useMontado()
+  return useMutation({
+    mutationFn: (confirmarEntregas: boolean) =>
+      api(rutaDeBorrarForo(claseId, foroId, confirmarEntregas), {
+        method: "DELETE",
+        schema: sinContenidoSchema,
+      }),
+    onSuccess: async () => {
+      toast.success(TEXTOS_DETALLE_FORO.avisoBorrado)
+      queryClient.removeQueries({ queryKey: claveForo(claseId, foroId) })
+      await invalidarTrasCambiarElForo(queryClient, claseId)
+    },
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      void renovarTrasErrorAlBorrar(
+        queryClient,
+        claveForo(claseId, foroId),
+        error,
+        () => pedirDeNuevoElForo(queryClient, claseId, foroId, error),
+        () => invalidarTrasCambiarElForo(queryClient, claseId),
+      )
+      if (esTareaConEntregas(error) && montado.current) return
+      if (errorQueRedirigeElCliente(error)) return
+      toast.error(mensajeDeErrorForo(error))
+    },
+  })
+}
+
+// El aviso de una recarga fallida del foro (el de la tarea, con la clave del foro) y el manejo del error
+// al descargar un adjunto del planteamiento (§D-10, E1-11): si apiClient ya redirigió, nada; si no, la
+// regla T-11 del foro (un 404 del foro o un 403 de la clase lo vuelven a pedir y la recarga reemplaza la
+// vista) y un aviso con el texto del foro.
+export const useAvisoDeRecargaFallidaDelForo = (
+  claseId: string,
+  foroId: string,
+  activo: boolean,
+  fallo: FalloDeLaConsulta,
+  texto: string,
+) => {
+  const queryClient = useQueryClient()
+  useAvisoDeRecargaFallidaDe(claveForo(claseId, foroId), activo, fallo, texto, false)
+  return (error: unknown) => {
+    if (errorQueRedirigeElCliente(error)) return
+    void pedirDeNuevoElForo(queryClient, claseId, foroId, error)
+    toast.error(mensajeDeErrorForo(error))
+  }
+}
+
+// FORO-01d (§E11.2, R-01d-3): una lectura de 01d con un error que reemplaza la vista del foro vuelve a
+// pedir solo el foro (exact): su respuesta decide si la vista se reemplaza; el bloque no se repite.
+const pedirDeNuevoSoloElForo = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  foroId: string,
+  error: unknown,
+) => {
+  if (!errorQueReemplazaLaVistaDelForo(true, error)) return
+  void queryClient.invalidateQueries(
+    { queryKey: claveForo(claseId, foroId), exact: true },
+    { cancelRefetch: false },
+  )
+}
+
+// R-01d-3: el gancho de cada lectura de 01d llama a pedirDeNuevoSoloElForo una vez por fallo nuevo (por
+// su errorUpdateCount), desde un efecto. La cuenta parte de la del montaje: un fallo que ya estaba en la
+// caché al montar no vuelve a pedir el foro.
+const usePedirElForoAnteUnFalloNuevo = (
+  claseId: string,
+  foroId: string,
+  fallo: { errorUpdateCount: number; error: unknown },
+) => {
+  const queryClient = useQueryClient()
+  const fallosVistosRef = useRef(fallo.errorUpdateCount)
+  useEffect(() => {
+    if (fallosVistosRef.current === fallo.errorUpdateCount) return
+    fallosVistosRef.current = fallo.errorUpdateCount
+    pedirDeNuevoSoloElForo(queryClient, claseId, foroId, fallo.error)
+  }, [queryClient, claseId, foroId, fallo.errorUpdateCount, fallo.error])
+}
+
+// FORO-01d (§D-8.4, E1-11). «Tu participación» del alumno que mira: solo la pide su perspectiva.
+export const useMiParticipacion = (claseId: string, foroId: string, habilitada: boolean) => {
+  const consulta = useQuery({
+    queryKey: claveMiParticipacion(claseId, foroId),
+    queryFn: () =>
+      api(rutaDeMiParticipacion(claseId, foroId), { schema: miParticipacionRespuestaSchema }),
+    enabled: habilitada,
+  })
+  usePedirElForoAnteUnFalloNuevo(claseId, foroId, consulta)
+  return consulta
+}
+
+// Las principales del foro, de la más antigua a la más reciente, de 20 en 20.
+export const useParticipaciones = (claseId: string, foroId: string) => {
+  const consulta = useInfiniteQuery({
+    queryKey: claveParticipaciones(claseId, foroId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(rutaDePaginaDeParticipaciones(claseId, foroId, pageParam), {
+        schema: listaParticipacionesRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+  usePedirElForoAnteUnFalloNuevo(claseId, foroId, consulta)
+  return consulta
+}
+
+// Las réplicas de una principal. `abierta`: solo el bloque abierto las pide; el control las lee de la
+// caché para su conteo (O-r1-2) sin pedirlas.
+export const useReplicas = (
+  claseId: string,
+  foroId: string,
+  participacionId: string,
+  abierta: boolean,
+) => {
+  const consulta = useInfiniteQuery({
+    queryKey: claveReplicas(claseId, foroId, participacionId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(rutaDePaginaDeReplicas(claseId, foroId, participacionId, pageParam), {
+        schema: listaReplicasRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+    enabled: abierta,
+  })
+  usePedirElForoAnteUnFalloNuevo(
+    claseId,
+    foroId,
+    abierta ? consulta : { errorUpdateCount: 0, error: null },
+  )
+  // §D-10: si la principal ya no existe (404 PARTICIPACION_NO_ENCONTRADA), la lista se renueva, una vez
+  // por fallo; el bloque lo dice.
+  const queryClient = useQueryClient()
+  const fallosVistosRef = useRef(consulta.errorUpdateCount)
+  useEffect(() => {
+    if (!abierta || fallosVistosRef.current === consulta.errorUpdateCount) return
+    fallosVistosRef.current = consulta.errorUpdateCount
+    if (!esApiError(consulta.error) || consulta.error.codigo !== "PARTICIPACION_NO_ENCONTRADA") {
+      return
+    }
+    void queryClient.invalidateQueries({
+      queryKey: claveParticipaciones(claseId, foroId),
+      exact: true,
+    })
+  }, [abierta, consulta.errorUpdateCount, consulta.error, queryClient, claseId, foroId])
+  return consulta
+}
+
+// El aviso de una recarga fallida de una lectura de 01d con datos en caché, una vez por fallo nuevo
+// (la memoria es por consulta, la de la tarea y el foro). El «Ver más» que falla avisa por su cuenta.
+export const useAvisoDeRecargaFallidaEnElForo = (
+  clave: readonly unknown[],
+  activo: boolean,
+  fallo: FalloDeLaConsulta,
+  texto: string,
+) => {
+  useAvisoDeRecargaFallidaDe(clave, activo, fallo, texto, false)
+}
+
+// Lo que se renueva tras un error de publicar: un 409 de la participación vuelve a pedir «Tu
+// participación» y la lista; un error que reemplaza la vista, solo el foro (R-01d-3).
+const renovarTrasErrorDeLaParticipacion = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  foroId: string,
+  error: unknown,
+) => {
+  if (esConflictoDeParticipacion(error)) {
+    void queryClient.invalidateQueries({ queryKey: claveMiParticipacion(claseId, foroId) })
+    void queryClient.invalidateQueries({
+      queryKey: claveParticipaciones(claseId, foroId),
+      exact: true,
+    })
+    return
+  }
+  pedirDeNuevoSoloElForo(queryClient, claseId, foroId, error)
+}
+
+// Publicar la principal (alumno). La respuesta escribe «Tu participación» y la lista (al final de la
+// última página cargada: la lista va de la más antigua a la más reciente), sin pedirlas otra vez; la
+// lista de «Foro», las actividades y las calificaciones se marcan viejas. Un error de «texto» lo pinta
+// el formulario si sigue montado; lo demás, un aviso.
+export const usePublicarParticipacion = (claseId: string, foroId: string) => {
+  const queryClient = useQueryClient()
+  const montado = useMontado()
+  return useMutation({
+    mutationFn: (datos: CrearParticipacion) =>
+      api(rutaDeLasParticipaciones(claseId, foroId), {
+        method: "POST",
+        body: datos,
+        schema: participacionPublicadaRespuestaSchema,
+      }),
+    onSuccess: ({ participacion, miParticipacion }) => {
+      queryClient.setQueryData(claveMiParticipacion(claseId, foroId), miParticipacion)
+      queryClient.setQueryData<{ pages: ListaParticipacionesRespuesta[]; pageParams: unknown[] }>(
+        claveParticipaciones(claseId, foroId),
+        (lista) => {
+          if (lista === undefined) return lista
+          const ultima = lista.pages.at(-1)
+          if (ultima === undefined) return lista
+          const conLaNueva = {
+            ...ultima,
+            participaciones: [...ultima.participaciones, participacion],
+          }
+          return { ...lista, pages: [...lista.pages.slice(0, -1), conLaNueva] }
+        },
+      )
+      void queryClient.invalidateQueries({ queryKey: claveListaDeForos(claseId) })
+      void queryClient.invalidateQueries({ queryKey: clavePrefijoDelTrabajo(claseId) })
+      void queryClient.invalidateQueries({ queryKey: clavePrefijoDeCalificaciones(claseId) })
+      toast.success(TEXTOS_PARTICIPACIONES.avisoPublicada)
+    },
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      renovarTrasErrorDeLaParticipacion(queryClient, claseId, foroId, error)
+      if (errorDelTextoDeLaParticipacion(error) !== null && montado.current) return
+      if (errorQueRedirigeElCliente(error)) return
+      toast.error(mensajeAlPublicarParticipacion(error, TEXTOS_PARTICIPACIONES.errorAlPublicar))
+    },
+  })
+}
+
+// Publicar una réplica (alumno que puede replicar, o maestro). La respuesta se agrega al bloque en caché
+// (el conteo sube solo); FORO_CERRADO vuelve a pedir «Tu participación»; una principal que ya no existe
+// avisa y renueva la lista.
+export const usePublicarReplica = (claseId: string, foroId: string, participacionId: string) => {
+  const queryClient = useQueryClient()
+  const montado = useMontado()
+  return useMutation({
+    mutationFn: (datos: CrearReplica) =>
+      api(rutaDeLasReplicas(claseId, foroId, participacionId), {
+        method: "POST",
+        body: datos,
+        schema: replicaPublicadaRespuestaSchema,
+      }),
+    onSuccess: ({ replica }) => {
+      queryClient.setQueryData<{ pages: ListaReplicasRespuesta[]; pageParams: unknown[] }>(
+        claveReplicas(claseId, foroId, participacionId),
+        (bloque) => {
+          if (bloque === undefined) return bloque
+          const ultima = bloque.pages.at(-1)
+          if (ultima === undefined) return bloque
+          const conLaNueva = { ...ultima, replicas: [...ultima.replicas, replica] }
+          return { ...bloque, pages: [...bloque.pages.slice(0, -1), conLaNueva] }
+        },
+      )
+      // FORO-01d, ronda 1 (B5): el conteo de la principal en la lista sube con la réplica, así el
+      // control plegado («Ver réplicas (n)») la cuenta aunque falten páginas del bloque por cargar.
+      queryClient.setQueryData<{ pages: ListaParticipacionesRespuesta[]; pageParams: unknown[] }>(
+        claveParticipaciones(claseId, foroId),
+        (lista) => {
+          if (lista === undefined) return lista
+          return {
+            ...lista,
+            pages: lista.pages.map((pagina) => ({
+              ...pagina,
+              participaciones: pagina.participaciones.map((principal) =>
+                principal.id === participacionId
+                  ? { ...principal, replicas: principal.replicas + 1 }
+                  : principal,
+              ),
+            })),
+          }
+        },
+      )
+    },
+    onError: (error) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      if (esApiError(error) && error.codigo === "PARTICIPACION_NO_ENCONTRADA") {
+        void queryClient.invalidateQueries({
+          queryKey: claveParticipaciones(claseId, foroId),
+          exact: true,
+        })
+      }
+      renovarTrasErrorDeLaParticipacion(queryClient, claseId, foroId, error)
+      if (errorDelTextoDeLaParticipacion(error) !== null && montado.current) return
+      if (errorQueRedirigeElCliente(error)) return
+      toast.error(
+        mensajeAlPublicarParticipacion(error, TEXTOS_PARTICIPACIONES.errorAlPublicarReplica),
+      )
+    },
+  })
+}
+
+// FORO-01d (§D-11, E3-3): el admin borra una principal (con sus réplicas) o una réplica. Con éxito se
+// renuevan la lista, el bloque de réplicas, la lista de «Foro» (el conteo) y las calificaciones. Una
+// participación que ya no existe o un permiso que cambió avisan y renuevan la lista; un error que
+// reemplaza la vista vuelve a pedir el foro.
+export const useBorrarParticipacion = (claseId: string, foroId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ participacionId }: VariablesDeBorrarParticipacion) =>
+      api(rutaDeUnaParticipacion(claseId, foroId, participacionId), {
+        method: "DELETE",
+        schema: sinContenidoSchema,
+      }),
+    onSuccess: async (_respuesta, { participacionId, principalId }) => {
+      toast.success(
+        principalId === null
+          ? TEXTOS_PARTICIPACIONES.avisoParticipacionBorrada
+          : TEXTOS_PARTICIPACIONES.avisoReplicaBorrada,
+      )
+      if (principalId === null) {
+        queryClient.removeQueries({
+          queryKey: claveReplicas(claseId, foroId, participacionId),
+          exact: true,
+        })
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: claveParticipaciones(claseId, foroId),
+          exact: true,
+        }),
+        ...(principalId === null
+          ? []
+          : [
+              queryClient.invalidateQueries({
+                queryKey: claveReplicas(claseId, foroId, principalId),
+                exact: true,
+              }),
+            ]),
+        queryClient.invalidateQueries({ queryKey: claveListaDeForos(claseId) }),
+        queryClient.invalidateQueries({ queryKey: clavePrefijoDeCalificaciones(claseId) }),
+        // FORO-1E42 (§D-11, §E13.4): el estado del alumno y lo que escribió cambian en «Participantes» y
+        // en su participación (la lista, cada participante y lo suyo: sin exact).
+        queryClient.invalidateQueries({ queryKey: clavePrefijoDeParticipantes(claseId, foroId) }),
+      ])
+    },
+    onError: (error, { principalId }) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      pedirDeNuevoSoloElForo(queryClient, claseId, foroId, error)
+      if (
+        esApiError(error) &&
+        (error.codigo === "PARTICIPACION_NO_ENCONTRADA" || error.codigo === "BORRADO_NO_PERMITIDO")
+      ) {
+        void queryClient.invalidateQueries({
+          queryKey: claveParticipaciones(claseId, foroId),
+          exact: true,
+        })
+        if (principalId !== null) {
+          void queryClient.invalidateQueries({
+            queryKey: claveReplicas(claseId, foroId, principalId),
+            exact: true,
+          })
+        }
+      }
+      if (errorQueRedirigeElCliente(error)) return
+      toast.error(mensajeDeErrorForo(error))
+    },
+  })
+}
+
+// FORO-01d, ronda 1 (T-02, arbitraje del manager; DESIGN.md §7.14, como N-28 de 01c1): si el control
+// que tenía el foco DENTRO del bloque desaparece (una recarga, un 409, un 404, la clase en solo lectura)
+// y el foco se perdió, va al encabezado del bloque (tabIndex -1), nunca a <body>. Se evalúa después de
+// cada render del dueño del bloque, así que va DESPUÉS de los efectos que ya mueven el foco (la fila
+// nueva, la vecina tras borrar): si alguno lo movió, el foco no está perdido y no hace nada. Con
+// `selectorDeFila` solo actúa si desapareció la fila del control (el bloque de réplicas: una réplica que
+// sale; lo demás lo atiende «Participaciones»). Como useFocoAlPerderseElControl: un focusout sin destino
+// con el control aún conectado (un clic en blanco, con la ventana con foco) borra la memoria, para no
+// robar el foco a quien lo soltó. Cuando la vista entera se reemplaza o cambia de foro, el bloque se
+// desmonta y manda el gancho de la vista (la raíz).
+export const useFocoAlEncabezadoSiSePierde = (
+  bloqueRef: RefObject<HTMLElement | null>,
+  encabezadoRef: RefObject<HTMLElement | null>,
+  selectorDeFila?: string,
+) => {
+  const controlRef = useRef<Element | null>(null)
+  const filaRef = useRef<Element | null>(null)
+
+  useEffect(() => {
+    const alEnfocar = (evento: FocusEvent) => {
+      const bloque = bloqueRef.current
+      const destino = evento.target
+      const dentro = bloque !== null && destino instanceof Element && bloque.contains(destino)
+      controlRef.current = dentro ? destino : null
+      filaRef.current =
+        dentro && selectorDeFila !== undefined ? destino.closest(selectorDeFila) : null
+    }
+    const alSalir = (evento: FocusEvent) => {
+      const objetivo = evento.target
+      if (evento.relatedTarget !== null || !(objetivo instanceof Element)) return
+      setTimeout(() => {
+        if (!objetivo.isConnected || !document.hasFocus()) return
+        if (document.activeElement === objetivo) return
+        if (controlRef.current === objetivo) controlRef.current = null
+      }, 0)
+    }
+    document.addEventListener("focusin", alEnfocar)
+    document.addEventListener("focusout", alSalir)
+    return () => {
+      document.removeEventListener("focusin", alEnfocar)
+      document.removeEventListener("focusout", alSalir)
+    }
+  }, [bloqueRef, selectorDeFila])
+
+  useEffect(() => {
+    const control = controlRef.current
+    if (control === null || control.isConnected) return
+    if (!focoPerdido(document)) return
+    if (selectorDeFila !== undefined) {
+      const fila = filaRef.current
+      if (fila === null || fila.isConnected) return
+    }
+    controlRef.current = null
+    filaRef.current = null
+    encabezadoRef.current?.focus()
+  })
+}
+
+// FORO-01d (§E8.4): el «Ver más» de las listas de features/tareas, con la lógica de Entregas. La guarda
+// con ref, fetchNextPage({ cancelRefetch: false }), un solo aviso salvo con la vista desmontada, el
+// cursor vencido (la lista dice su texto), un error que reemplaza la vista o uno con que apiClient ya
+// redirige; y el foco de useFocoAlCargarMas (la primera fila nueva o el encabezado). No lee
+// isFetchingNextPage (CH4-04).
+export const useVerMasConservandoLaLista = (
+  consulta: ConsultaConVerMas,
+  opciones: OpcionesDeVerMas,
+) => {
+  const montado = useMontado()
+  const pidiendoRef = useRef(false)
+  const refVerMas = useFocoAlCargarMas(
+    opciones.ids,
+    opciones.enfocarFila,
+    opciones.enfocarEncabezado,
+  )
+
+  const handleVerMas = async () => {
+    if (pidiendoRef.current) return
+    pidiendoRef.current = true
+    try {
+      const resultado = await consulta.fetchNextPage({ cancelRefetch: false })
+      if (!resultado.isError || !montado.current) return
+      if (esErrorDeCursor(resultado.error)) return
+      if (errorQueReemplazaLaVistaDelForo(true, resultado.error)) return
+      if (errorQueRedirigeElCliente(resultado.error)) return
+      toast.error(mensajeDeConsultaForo(resultado.error))
+    } finally {
+      pidiendoRef.current = false
+    }
+  }
+
+  return { refVerMas, handleVerMas }
+}
+
+// FORO-01e (§E13.3, R-01e-14): un bloque de la participación de un alumno con un error que reemplaza la
+// vista vuelve a pedir solo la participante (exact): su respuesta decide si la vista se reemplaza; el
+// bloque no se repite.
+const pedirDeNuevoSoloLaParticipante = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  claseId: string,
+  foroId: string,
+  alumnoId: string,
+  error: unknown,
+) => {
+  if (!errorQueReemplazaLaVistaDelForo(true, error)) return
+  void queryClient.invalidateQueries(
+    { queryKey: claveParticipante(claseId, foroId, alumnoId), exact: true },
+    { cancelRefetch: false },
+  )
+}
+
+// R-01e-14: el gancho de cada bloque llama a pedirDeNuevoSoloLaParticipante una vez por fallo nuevo
+// (por su errorUpdateCount), desde un efecto. Un fallo que ya estaba en la caché al montar no pide nada.
+const usePedirLaParticipanteAnteUnFalloNuevo = (
+  claseId: string,
+  foroId: string,
+  alumnoId: string,
+  fallo: { errorUpdateCount: number; error: unknown },
+) => {
+  const queryClient = useQueryClient()
+  const fallosVistosRef = useRef(fallo.errorUpdateCount)
+  useEffect(() => {
+    if (fallosVistosRef.current === fallo.errorUpdateCount) return
+    fallosVistosRef.current = fallo.errorUpdateCount
+    pedirDeNuevoSoloLaParticipante(queryClient, claseId, foroId, alumnoId, fallo.error)
+  }, [queryClient, claseId, foroId, alumnoId, fallo.errorUpdateCount, fallo.error])
+}
+
+// FORO-01e (§D-8.5, ruta 12): «Participantes», los alumnos de la clase de 20 en 20 con su entrega en el
+// foro, para sus maestros y el admin. Sin avisos ni renovaciones aquí: la vista decide (como Entregas).
+export const useParticipantes = (claseId: string, foroId: string) =>
+  useInfiniteQuery({
+    queryKey: claveListaDeParticipantes(claseId, foroId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(rutaDePaginaDeParticipantes(claseId, foroId, pageParam), {
+        schema: listaEntregasRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+
+// Ruta 13: la entrega de un alumno en el foro (la participante), con la versión que exige calificar.
+export const useParticipante = (claseId: string, foroId: string, alumnoId: string) =>
+  useQuery({
+    queryKey: claveParticipante(claseId, foroId, alumnoId),
+    queryFn: () =>
+      api(rutaDeParticipante(claseId, foroId, alumnoId), {
+        schema: entregaDeAlumnoRespuestaSchema,
+      }),
+  })
+
+// Ruta 14: lo que escribió el alumno (su principal y sus réplicas), de 20 en 20.
+export const useParticipacionesDeAlumno = (claseId: string, foroId: string, alumnoId: string) => {
+  const consulta = useInfiniteQuery({
+    queryKey: claveParticipacionesDeAlumno(claseId, foroId, alumnoId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(rutaDePaginaDeParticipacionesDeAlumno(claseId, foroId, alumnoId, pageParam), {
+        schema: listaParticipacionesDeAlumnoRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+  usePedirLaParticipanteAnteUnFalloNuevo(claseId, foroId, alumnoId, consulta)
+  return consulta
+}
+
+// Ruta 15: los comentarios de la devolución de un alumno, para sus maestros y el admin.
+export const useDevoluciones = (claseId: string, foroId: string, alumnoId: string) => {
+  const consulta = useInfiniteQuery({
+    queryKey: claveDevoluciones(claseId, foroId, alumnoId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(rutaDePaginaDeDevoluciones(claseId, foroId, alumnoId, pageParam), {
+        schema: listaComentariosPrivadosRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+  usePedirLaParticipanteAnteUnFalloNuevo(claseId, foroId, alumnoId, consulta)
+  return consulta
+}
+
+// Ruta 7: «Comentarios de tu maestro», del alumno que mira. Solo se monta con calificación (R-01e-11).
+export const useMisDevoluciones = (claseId: string, foroId: string) => {
+  const consulta = useInfiniteQuery({
+    queryKey: claveMisDevoluciones(claseId, foroId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      api(rutaDePaginaDeMisDevoluciones(claseId, foroId, pageParam), {
+        schema: listaComentariosPrivadosRespuestaSchema,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultimaPagina) => ultimaPagina.siguienteCursor ?? undefined,
+  })
+  usePedirElForoAnteUnFalloNuevo(claseId, foroId, consulta)
+  return consulta
+}
+
+// FORO-01e (§E13.6, §E13.7): tras un 409 de calificar, la vista recarga la participante; si esa recarga
+// falla, el aviso es el de calificar (DH-19), no el de la recarga fallida. Esto marca ese fallo como ya
+// avisado para el aviso de recarga de la consulta (una sola persona, un solo mensaje).
+export const useMarcarElFalloComoAvisado = () => {
+  const queryClient = useQueryClient()
+  return (clave: readonly unknown[]) => {
+    const consulta = queryClient.getQueryCache().find({ queryKey: clave, exact: true })
+    if (consulta === undefined) return
+    ultimoFalloAvisado.set(
+      consulta,
+      `${String(consulta.state.errorUpdateCount)}:${String(consulta.state.errorUpdatedAt)}`,
+    )
+  }
+}
+
+// FORO-01e (§D-8.5, §E13.4, ruta 16): calificar la participación de un alumno (un maestro de la clase).
+// La respuesta reemplaza la participante (exact); se marcan viejas la lista de participantes, el prefijo
+// de calificaciones, la lista de «Foro» y, con comentario, las devoluciones de ese alumno (exact). No toca
+// el foro, las participaciones ni lo que escribió el alumno. Los avisos viven aquí (corren aunque la vista
+// ya no esté montada).
+// - Un 409 avisa con el texto del servidor y deja vieja la participante sin pedirla (FORO-1E41): con la
+//   vista montada, la vista la vuelve a pedir una sola vez.
+// - Un error que reemplaza la vista vuelve a pedir solo el foro y la participante (exact).
+// - Un error de un campo que el panel pinta no avisa; uno que no pinta avisa una vez con el texto del foro.
+// - Un código con que apiClient redirige no avisa.
+export const useCalificarParticipacion = (claseId: string, foroId: string, alumnoId: string) => {
+  const queryClient = useQueryClient()
+  const montado = useMontado()
+  return useMutation({
+    mutationFn: ({ cuerpo }: VariablesDeCalificar) =>
+      api(rutaDeCalificacionDeParticipante(claseId, foroId, alumnoId), {
+        method: "PUT",
+        body: cuerpo,
+        schema: entregaDeAlumnoRespuestaSchema,
+      }),
+    onSuccess: (respuesta, { cuerpo, habiaCalificacion }) => {
+      queryClient.setQueryData(claveParticipante(claseId, foroId, alumnoId), respuesta)
+      void queryClient.invalidateQueries({ queryKey: claveListaDeParticipantes(claseId, foroId) })
+      void queryClient.invalidateQueries({ queryKey: clavePrefijoDeCalificaciones(claseId) })
+      void queryClient.invalidateQueries({ queryKey: claveListaDeForos(claseId) })
+      if (cuerpo.comentario !== undefined) {
+        void queryClient.invalidateQueries({
+          queryKey: claveDevoluciones(claseId, foroId, alumnoId),
+          exact: true,
+        })
+      }
+      toast.success(
+        habiaCalificacion ? TEXTOS_CALIFICAR.avisoActualizada : TEXTOS_CALIFICAR.avisoPublicada,
+      )
+    },
+    onError: (error, { cuerpo }) => {
+      marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)
+      if (esConflictoDeCalificacion(error)) {
+        void queryClient.invalidateQueries({
+          queryKey: claveParticipante(claseId, foroId, alumnoId),
+          exact: true,
+          refetchType: "none",
+        })
+        toast.error(mensajeDeErrorForo(error))
+        return
+      }
+      pedirDeNuevoSoloElForo(queryClient, claseId, foroId, error)
+      pedirDeNuevoSoloLaParticipante(queryClient, claseId, foroId, alumnoId, error)
+      if (errorQueRedirigeElCliente(error)) return
+      const criteriosEnviados = cuerpo.puntajes.map(({ criterioId }) => ({ id: criterioId }))
+      if (erroresDeCalificacionDeApi(error, criteriosEnviados) !== null && montado.current) return
+      toast.error(mensajeDeErrorForo(error))
     },
   })
 }

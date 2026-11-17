@@ -161,10 +161,10 @@ describe("CL3-D13 y CL3-D14 · lo que reemplaza «Editar recurso» y el aviso de
 })
 
 describe("CL3-D26 · «Recursos» como sección", () => {
-  it("CL3-D26: «Recursos» es la tercera sección y queda activa en …/recursos y en su edición (S-11)", () => {
+  it("CL3-D26: «Recursos» es la cuarta sección y queda activa en …/recursos y en su edición (S-11)", () => {
     const secciones = CAPACIDADES_POR_PERSPECTIVA.maestro.secciones
     const base = "/maestro/clases/abc"
-    expect(indiceDeSeccionActiva(`${base}/recursos`, base, secciones)).toBe(2)
-    expect(indiceDeSeccionActiva(`${base}/recursos/r1/editar`, base, secciones)).toBe(2)
+    expect(indiceDeSeccionActiva(`${base}/recursos`, base, secciones)).toBe(3)
+    expect(indiceDeSeccionActiva(`${base}/recursos/r1/editar`, base, secciones)).toBe(3)
   })
 })

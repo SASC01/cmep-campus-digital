@@ -969,7 +969,11 @@ describe("ataque FIX-CLASES r2: las lecturas con cursor que quedan fuera (O-4 y 
   // RESTRICT) y la clase con clase.delete o clase.deleteMany (lo demás cae en cascada), los dos con
   // Prisma. Lo que protege no cambia: sigue sin DELETE FROM ni TRUNCATE crudos, nada borra
   // enlaces_registro ni usuarios, y cualquier otro borrado vuelve a poner la prueba en rojo.
-  it("O-4: en backend/src solo se borran clases, movimientos de inscripción, inscripciones, asignaciones de maestro, publicaciones, comentarios, temas, categorías, criterios de rúbrica, puntajes de rúbrica y dudas; nada borra enlaces_registro ni usuarios", () => {
+  // FORO-01b, C-3 (§E7.5.2; §D-11): borrarParticipacion (adapters/db/foros.ts) borra una
+  // participación o una réplica con participacionForo.deleteMany; las réplicas de una principal caen
+  // en cascada. Lo que protege no cambia: sigue sin DELETE FROM ni TRUNCATE crudos y nada borra
+  // enlaces_registro ni usuarios.
+  it("O-4: en backend/src solo se borran clases, movimientos de inscripción, inscripciones, asignaciones de maestro, publicaciones, comentarios, temas, categorías, criterios de rúbrica, puntajes de rúbrica, dudas y participaciones de foro; nada borra enlaces_registro ni usuarios", () => {
     const raiz = join(import.meta.dirname, "..", "src")
     const borrados = new Set<string>()
     const crudos: string[] = []
@@ -993,6 +997,7 @@ describe("ataque FIX-CLASES r2: las lecturas con cursor que quedan fuera (O-4 y 
       "maestroDeClase",
       // ADMIN-01b, C-4: borrarClaseDefinitivamente borra los movimientos de la clase antes que la clase.
       "movimientoInscripcion",
+      "participacionForo",
       "publicacion",
       "puntajeRubrica",
       "tema",

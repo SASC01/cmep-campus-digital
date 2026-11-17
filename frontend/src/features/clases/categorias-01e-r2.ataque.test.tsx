@@ -150,7 +150,8 @@ describe("ataque TAREAS-01e r2: T-18, la respuesta reemplaza la lista (sin halla
     if (formulario === null) throw new Error("sin formulario")
     fireEvent.submit(formulario)
     await waitFor(() => expect(aviso.success).toHaveBeenCalledWith("Categorías guardadas"))
-    await waitFor(() => expect(screen.getAllByText("0 tareas")).toHaveLength(2))
+    // FORO-01d, C-12 (§E7.5.5; E1-9): el editor de categorías cuenta actividades (tareas y foros).
+    await waitFor(() => expect(screen.getAllByText("0 actividades")).toHaveLength(2))
     const pares = filas().map((f) => [
       nombreDe(f).getAttribute("value") ?? (nombreDe(f) as HTMLInputElement).value,
       (pesoDe(f) as HTMLInputElement).value,

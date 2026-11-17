@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react"
+import { MessagesSquare, Plus } from "lucide-react"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Link, useLocation } from "react-router"
 
@@ -276,6 +276,14 @@ function TrabajoDeLaClase({ claseId }: TrabajoDeLaClaseProps) {
               <Link to={`${base}/tareas/nueva`} className={buttonVariants({ variant: "primary" })}>
                 <Plus aria-hidden="true" />
                 {TEXTOS_TRABAJO.crearTarea}
+              </Link>
+            )}
+            {/* FORO-01d (§D-8.3): "Crear foro" junto a "Crear tarea", que sigue siendo la única
+                acción principal; tampoco sale en una clase archivada. */}
+            {!soloLectura && (
+              <Link to={`${base}/foros/nuevo`} className={buttonVariants({ variant: "outline" })}>
+                <MessagesSquare aria-hidden="true" />
+                {TEXTOS_TRABAJO.crearForo}
               </Link>
             )}
             {!soloLectura && !creando && (

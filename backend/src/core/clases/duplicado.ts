@@ -5,7 +5,8 @@ import { claveDeMaterial } from "../archivos/politica.js"
 // alumnos, avisos, actividades, recursos del docente, comentarios, dudas ni calificaciones. Puro:
 // recibe lo leído de la original, el id de la clase nueva, la hora y un generador de ids.
 
-export type TipoDePublicacionOriginal = "anuncio" | "material" | "tarea"
+// FORO-01a (§E8.1): el tipo refleja el de la base; un foro, como toda actividad, no se copia.
+export type TipoDePublicacionOriginal = "anuncio" | "material" | "tarea" | "foro"
 export type BloqueOriginal = "aprendizaje" | "docente" | null
 export type EstadoDeArchivoOriginal = "pendiente" | "confirmado" | "descartado"
 

@@ -114,6 +114,8 @@ describe("CH6-A30 · lo abierto es del id de la ruta (regla estática)", () => {
   it("CH6-A30 (c): la tarea, su edición, el recurso y la entrega de un alumno llevan la key por todos los ids de su ruta", () => {
     expect(textoDe("tareas/detalle-tarea-view.tsx")).toContain("key={tarea.id}")
     expect(textoDe("tareas/editar-tarea-view.tsx")).toContain("key={tareaId}")
+    expect(textoDe("tareas/foro-view.tsx")).toContain("key={foro.id}")
+    expect(textoDe("tareas/editar-foro-view.tsx")).toContain("key={foroId}")
     // T-01 de la ronda 1: las entregas de una tarea, en la Forma C, por la tarea (un id global).
     expect(textoDe("tareas/entregas-view.tsx")).toContain("<ListaDeEntregasDeLaTarea key={tareaId}")
     expect(textoDe("clases/editar-recurso-view.tsx")).toContain("key={recursoId}")

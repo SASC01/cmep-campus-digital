@@ -107,6 +107,9 @@ const FORMULARIO_TAREA = "/src/features/tareas/components/formulario-tarea.tsx"
 const EXCEPCIONES: readonly string[] = [
   "/src/features/tareas/crear-tarea-view.tsx#crear.mutateAsync",
   "/src/features/tareas/editar-tarea-view.tsx#editar.mutateAsync",
+  // FORO-01c2 (§E7.3, "Frontend", punto 4): corren dentro de handleGuardar de formulario-tarea.tsx, que toma la ref.
+  "/src/features/tareas/crear-foro-view.tsx#crear.mutateAsync",
+  "/src/features/tareas/editar-foro-view.tsx#editar.mutateAsync",
 ]
 
 const CARPETAS: readonly string[] = [

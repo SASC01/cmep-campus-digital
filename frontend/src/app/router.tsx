@@ -36,11 +36,14 @@ import { PersonasView } from "@/features/clases/personas-view"
 import { RecursosView } from "@/features/clases/recursos-view"
 import { TrabajoView } from "@/features/clases/trabajo-view"
 import { DiagnosticoView } from "@/features/diagnostico/diagnostico-view"
+import { CrearForoView } from "@/features/tareas/crear-foro-view"
 import { CrearTareaView } from "@/features/tareas/crear-tarea-view"
 import { DetalleTareaView } from "@/features/tareas/detalle-tarea-view"
+import { EditarForoView } from "@/features/tareas/editar-foro-view"
 import { EditarTareaView } from "@/features/tareas/editar-tarea-view"
 import { EntregaDeAlumnoView } from "@/features/tareas/entrega-de-alumno-view"
 import { EntregasView } from "@/features/tareas/entregas-view"
+import { ForoView } from "@/features/tareas/foro-view"
 
 import { RequireCambioDeContrasena } from "./require-cambio-de-contrasena"
 import { RequireRol } from "./require-rol"
@@ -109,6 +112,10 @@ export const rutas: RouteObject[] = [
               // cualquier ruta desconocida. `tareas/:id/editar` no existe para el alumno y cae en `*`.
               { path: "tareas/nueva", element: <Navigate to="/login" replace /> },
               { path: "tareas/:tareaId", element: <DetalleTareaView /> },
+              // FORO-01c2 (§D-8.1): el alumno solo ve el foro; "nuevo" no es un foroId (como
+              // `tareas/nueva`) y `foros/:foroId/editar` no existe en esta rama y cae en `*`.
+              { path: "foros/nuevo", element: <Navigate to="/login" replace /> },
+              { path: "foros/:foroId", element: <ForoView /> },
             ],
           },
         ],
@@ -152,6 +159,11 @@ export const rutas: RouteObject[] = [
                 path: "tareas/:tareaId/entregas/:alumnoId",
                 element: <EntregaDeAlumnoView />,
               },
+              // FORO-01c2 (§D-8.1): crear, ver y editar un foro; ninguna activa una sección (como las de
+              // la tarea) y el literal "nuevo" gana a :foroId.
+              { path: "foros/nuevo", element: <CrearForoView /> },
+              { path: "foros/:foroId", element: <ForoView /> },
+              { path: "foros/:foroId/editar", element: <EditarForoView /> },
             ],
           },
         ],
@@ -206,6 +218,9 @@ export const rutas: RouteObject[] = [
                     path: "tareas/:tareaId/entregas/:alumnoId",
                     element: <EntregaDeAlumnoView />,
                   },
+                  { path: "foros/nuevo", element: <CrearForoView /> },
+                  { path: "foros/:foroId", element: <ForoView /> },
+                  { path: "foros/:foroId/editar", element: <EditarForoView /> },
                 ],
               },
             ],

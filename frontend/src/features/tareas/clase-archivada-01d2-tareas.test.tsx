@@ -958,7 +958,10 @@ describe("ADM-1D221: tabla B2", () => {
       },
     )
 
-    it("ADM-1D221 fila 36, 409, con la vista desmontada: como hoy, pide la recarga", async () => {
+    // FORO-01c2 (§E10; §D-8.6, T-01 y T-04; FORO-1C30 y FORO-1C41): con la vista desmontada, el 409 da un
+    // aviso y nada más; la tarea queda vieja sin pedirla, así que al volver a abrir la edición se pide la
+    // versión del servidor. Sigue protegiendo de la fila 36 el aviso único del 409 con la vista desmontada.
+    it("ADM-1D221 fila 36, 409, con la vista desmontada: un aviso; no pide la recarga y deja vieja la tarea", async () => {
       const { cliente, soltar } = await conLaEscrituraEnVuelo(
         RUTAS.editar,
         esPutTarea,
@@ -967,10 +970,13 @@ describe("ADM-1D221: tabla B2", () => {
         VISTA_DESMONTADA,
       )
       const antes = pedidas("GET", API_TAREA).length
+      expect(cliente.getQueryState(["clases", CLASE, "tareas", TAREA])?.isInvalidated).toBe(false)
       soltar()
       await waitFor(() => expect(errores()).toEqual([MODIFICADA]), ESPERA)
-      await waitFor(() => expect(pedidas("GET", API_TAREA).length).toBe(antes + 1), ESPERA)
       await reposar(cliente)
+      expect(errores()).toEqual([MODIFICADA])
+      expect(pedidas("GET", API_TAREA)).toHaveLength(antes)
+      expect(cliente.getQueryState(["clases", CLASE, "tareas", TAREA])?.isInvalidated).toBe(true)
     })
   })
 

@@ -22,6 +22,8 @@ Base de "No se toca" (Enmienda 7): **`fd4a7ad`** (`main` al crear `feat/foro-01-
 4. **El plan no toca `middleware/`, `adapters/auth` ni `infra/`**, ni `.env.example`.
 5. Las decisiones ya tomadas: DH-01 a DH-18 (DH-05 con tu corrección), PB-1 y PB-2, el complemento de DH-12 y N-19.
 
+**Enmienda 10 (2026-11-16), corta:** atiende la PARADA del programador en 01c2. Una prueba normal de ADMIN-01d2 (`clase-archivada-01d2-tareas.test.tsx:961-974`, "ADM-1D221 fila 36, 409, con la vista desmontada") fija la recarga que T-01 quita. El plan la suma a la lista cerrada de 01c2 con su cambio literal, e inventaría por grep las demás que fijan conducta con la vista desmontada. Todo está en "§E10", debajo de estas notas, y **manda sobre §E9, §E8 y §E7 en lo que toca**: la lista cerrada y las vigiladas de 01c2. No cambia ids, decisiones del humano ni otras subentregas. La tabla está al final, en "Enmienda 10 — tabla de cambios".
+
 **Enmienda 9 (2026-11-14), final:** integra las decisiones del humano del 2026-11-14 (`aprobacion.md`, "Decisiones del humano sobre el rearranque (2026-11-14)") y atiende N-22 a N-25 y los dos detalles de la verificación de la Enmienda 8 (`revision.md`). Todo está en "§E9", debajo de estas notas, y **manda sobre §E8 y §E7**. Los cambios en el resto van marcados "(Enmienda 9)". La tabla está al final, en "Enmienda 9 — tabla de cambios".
 
 **Enmienda 8 (2026-11-14):** atiende la verificación de la Enmienda 7 (`revision.md`, "Verificación de la Enmienda 7 (rearranque) — FORO-01 (2026-11-14)"):
@@ -52,6 +54,159 @@ Con la ruta nueva, 01a pasa de unos 30 archivos y se parte en **01a1** y **01a2*
 **Enmienda 1 (2026-11-04):** atiende la revisión del manager en modo plan (`revision.md`: M-01 a M-04, N-01 a N-10 y los detalles menores) y la corrección del orquestador sobre DH-13. Los cambios van en su lugar, marcados "(E1-n)". La tabla de cambios está al final, en "Enmienda 1 — tabla de cambios".
 
 **Regla de orden de fusión (E1-2, M-02; la confirma el humano en DH-13):** ningún commit de FORO-01 entra a `main` antes de que ADMIN-01 se fusione en `main`. 01a se queda en `feat/foro-01`. 01b arranca trayendo `main` a `feat/foro-01` (DH-14). **(Enmienda 7) Sin objeto y cumplida:** ADMIN-01 entró a `main` (PR #33 y #35) sin que entrara antes ningún commit de FORO-01 (el PR #32 se revirtió con el #34), y la rama nueva nace de `fd4a7ad`, así que no hay fusión de `main` que traer (§E7.0).
+
+## §E10. Enmienda 10 (2026-11-16): ADM-1D221 fila 36 con la vista desmontada (PARADA de 01c2)
+
+Manda sobre §E9, §E8 y §E7 en lo que toca: la lista cerrada y las vigiladas de 01c2. No cambia ids, decisiones del humano ni otras subentregas.
+
+### §E10.1. La PARADA y la opción recomendada
+- **Qué pasó.** `features/tareas/clase-archivada-01d2-tareas.test.tsx:961-974`, prueba normal de ADMIN-01d2, falla en `:972`: espera `antes + 1` lecturas de la tarea y llegan `antes`.
+  - El caso fija "como hoy, pide la recarga" cuando el `409 TAREA_MODIFICADA` llega con la vista desmontada.
+  - Es justo lo que T-01 quita (§D-8.6: "Solo con la vista montada; desmontada, un aviso y nada más"; FORO-1C30).
+  - El inventario de §E7.5.3 buscó las pruebas con la vista montada y los conteos de `/temas` y `/categorias`, pero no las que fijan la recarga con la vista desmontada. Es una omisión del plan, no del programador.
+- **(A) Recomendada: sumar el caso a la lista cerrada de 01c2** con el cambio de §E10.2.
+  - Es lo que manda el plan aprobado: T-01 y T-04 (FORO-1C30 y FORO-1C41).
+  - Su vecino de la fila 33 con la vista desmontada (`:1091-1104`) ya afirma esa misma conducta para calificar: un aviso y ninguna lectura.
+  - FORO-1C30 exige lo mismo en la tarea y en el foro, así que las dos actividades se comportan igual.
+- **(B) No aplicar T-01 en la tarea:** contradice §D-8.6 y FORO-1C30, que habría que partir por tipo, y deja la tarea distinta del foro. No se recomienda. Si el humano la prefiere, cambia el plan aprobado y es decisión suya.
+
+### §E10.2. El caso, antes → después
+**Antes** (`clase-archivada-01d2-tareas.test.tsx:961-974`):
+```ts
+    it("ADM-1D221 fila 36, 409, con la vista desmontada: como hoy, pide la recarga", async () => {
+      const { cliente, soltar } = await conLaEscrituraEnVuelo(
+        RUTAS.editar,
+        esPutTarea,
+        respuestaTareaModificada,
+        pulsarGuardar,
+        VISTA_DESMONTADA,
+      )
+      const antes = pedidas("GET", API_TAREA).length
+      soltar()
+      await waitFor(() => expect(errores()).toEqual([MODIFICADA]), ESPERA)
+      await waitFor(() => expect(pedidas("GET", API_TAREA).length).toBe(antes + 1), ESPERA)
+      await reposar(cliente)
+    })
+```
+
+**Después:**
+```ts
+    // FORO-01c2 (§E10; §D-8.6, T-01 y T-04; FORO-1C30 y FORO-1C41): con la vista desmontada, el 409 da un
+    // aviso y nada más; la tarea queda vieja sin pedirla, así que al volver a abrir la edición se pide la
+    // versión del servidor. Sigue protegiendo de la fila 36 el aviso único del 409 con la vista desmontada.
+    it("ADM-1D221 fila 36, 409, con la vista desmontada: un aviso; no pide la recarga y deja vieja la tarea", async () => {
+      const { cliente, soltar } = await conLaEscrituraEnVuelo(
+        RUTAS.editar,
+        esPutTarea,
+        respuestaTareaModificada,
+        pulsarGuardar,
+        VISTA_DESMONTADA,
+      )
+      const antes = pedidas("GET", API_TAREA).length
+      expect(cliente.getQueryState(["clases", CLASE, "tareas", TAREA])?.isInvalidated).toBe(false)
+      soltar()
+      await waitFor(() => expect(errores()).toEqual([MODIFICADA]), ESPERA)
+      await reposar(cliente)
+      expect(errores()).toEqual([MODIFICADA])
+      expect(pedidas("GET", API_TAREA)).toHaveLength(antes)
+      expect(cliente.getQueryState(["clases", CLASE, "tareas", TAREA])?.isInvalidated).toBe(true)
+    })
+```
+
+- **Lo que cambia:**
+  - el título;
+  - el comentario;
+  - `:972` (la espera de `antes + 1`) sale; en su lugar, después de `reposar`, ninguna lectura más y la tarea marcada vieja;
+  - se suma la precondición de que la tarea no estaba vieja antes de soltar el `409`. Si no se cumple, PARADA: algo más la marca y el caso ya no vigila T-04.
+- **Lo que queda:** la preparación con `conLaEscrituraEnVuelo` y `VISTA_DESMONTADA`, `antes`, `soltar()` y el aviso único `[MODIFICADA]`. Ahora se comprueba también después de `reposar`: un aviso, no uno por la vista y otro por el gancho.
+- **Lo que sigue protegiendo de la fila 36 de ADMIN-01d2:** que el `409` con la vista desmontada da un solo aviso legible y no deja la caché sirviendo la versión vieja.
+  - Las otras dos variantes de la fila no cambian: con la clase archivada (`:919-933`) y restaurada (`:935-959`, `RESTAURADOS`). Son vigiladas: ninguna lectura, y el campo y el foco siguen.
+- **¿Se puede comprobar "marcada vieja" con lo que hay?** Sí.
+  - `cliente` sale de `conLaEscrituraEnVuelo`, y `getQueryState(...)?.isInvalidated` es lo que ya usa ADM-1D211 hermano en el mismo archivo (`:560-561`).
+  - La clave literal es la de `claveTarea` (`services/trabajoService.ts:19-20`), y `CLASE` y `TAREA` ya están en el archivo.
+  - `invalidateQueries({ refetchType: "none" })` (`hooks.ts:228-235`, llamada en `:305`) pone `isInvalidated` sin pedir nada. La consulta sigue en la caché, porque `clienteDePrueba` (`:268-274`) usa el `gcTime` por defecto.
+  - No hace falta ninguna ayuda nueva.
+- **Comprobación por mutación** (`AGENTS.md`, "Pruebas"; los dos archivos están en "Se toca" de 01c2, así que no hace falta permiso):
+  - quitar `if (!montado.current) return` al inicio de `recargarTrasConflicto` (`editar-tarea-view.tsx:133`) debe poner en rojo la aserción de las lecturas;
+  - quitar la llamada a `marcarViejaLaActividadTrasConflicto` de `useEditarTarea` (`hooks.ts:305`) debe poner en rojo la última aserción.
+- **Quién lo aplica:** el programador, porque es una prueba normal en la lista cerrada. Va en el resumen con su antes → después.
+
+### §E10.3. Inventario (grep sobre el árbol de hoy, con 01c2 en curso)
+Comandos (la búsqueda del entorno, equivalente a `rg`, sobre `frontend/src`):
+
+| # | Patrón | Alcance | Resultado |
+|---|---|---|---|
+| 1 | `desmontad\|sin observador\|VISTA_DESMONTADA` | `*.test.tsx` de `frontend/src` | 133 apariciones en 49 archivos. 13 en `features/tareas`. En `app/`, `estado-por-id-ch6a-r1.ataque` (ATQ-CH6-05 y ATQ-CH6-06, guardados con éxito) y `contrasena-r2.ataque` (el formulario de contraseña). Sin el filtro de extensión aparece además `app/redirige-03c2.test.ts:8`, un comentario sobre crear y editar clase. Las demás, en `features/clases`, `admin`, `calificaciones` y `auth`: no montan la edición ni el detalle de una tarea ni usan sus ganchos |
+| 2 | `TAREA_MODIFICADA` | `*.test.tsx` | 24 apariciones en 9 archivos |
+| 3 | `BORRADO_NO_PERMITIDO\|"TAREA_NO_ENCONTRADA"` | `*.test.tsx` | En `features/tareas`, los que borran o editan una tarea: `detalle-tarea-view.test.tsx` (`:265`, `:289`, `:523`, `:541`), `tareas-01d-r2.ataque` (`:325-365`), `tareas-01d-r3.ataque` (`:145-260`) y `editar-tarea-view.test.tsx`. Lo demás es de entregas, calificar y recursos |
+| 4 | `(getByLabelText\|getByRole)\("(Categoría\|Tema)"\|name: "(Sin categoría\|Sin tema\|Elige una categoría)"` | `*.test.tsx` | 44 apariciones en 11 archivos. En modo edición, solo `editar-tarea-view.test.tsx` (7: `:159`, `:160`, `:169`, `:218`, `:236`, `:320`, `:343`). `formulario-tarea.test.tsx` y `tareas-01d-r1`/`r2.ataque` (`:201-202`, `:310-315`) usan `renderCrear`, y al crear las listas cuentan como confirmadas (`useListaConfirmadaAlAbrir`, `hooks.ts:128`) |
+| 5 | `CODIGOS_QUE_DEJAN_VIEJA_LA_ACTIVIDAD\|marcarViejaLaActividadTrasConflicto` | `features/tareas` | `data.ts:462-464` (`TAREA_MODIFICADA` y `TAREA_CON_CALIFICACIONES`; no `CLASE_ARCHIVADA`), y `hooks.ts:228-235` y `:305` |
+
+`hermanos-03d-01c.test.tsx` es la prueba nueva de 01c2 (FORO-1C30 a FORO-1C36) y no entra en el inventario.
+
+**Cambia (lista cerrada de 01c2):**
+- **1 seguro:** `features/tareas/clase-archivada-01d2-tareas.test.tsx:961-974`, como en §E10.2.
+- **1 condicional:** `features/tareas/editar-tarea-view.test.tsx`, solo si se pone rojo con T-02 y T-03 (en la edición, «Categoría» y «Tema» se pintan solo después de la lectura que los confirma, `formulario-tarea.tsx:379` y `:415`). Son tres puntos que leen el campo justo después de esperar «Título»:
+  - `:159-160` (PR-1D04, "carga los valores…"): `screen.getByLabelText("Categoría")` → `await screen.findByLabelText("Categoría")`, y lo mismo con «Tema». Las aserciones `toHaveValue` no cambian.
+  - `:236` (PR-1D04, "una tarea sin categoría en una clase sin categorías…"): `screen.getByRole("option", { name: "Sin categoría" })` → `await screen.findByRole("option", { name: "Sin categoría" })`. Lo demás no cambia.
+  - `:334-335` y `:343` (PR-1D04, "tras un 404 de tema…"): después de `await screen.findByLabelText("Título")` se suma `await screen.findByLabelText("Tema")`, antes de `guardar()`. Así el `waitFor` de `:340-342` no pasa porque el campo aún no está. `:343` no cambia.
+  - Cada cambio lleva el comentario `// FORO-01c2 (§E10; §D-8.6, T-02 y T-03): en la edición el campo aparece cuando lo confirma la lectura al abrir; se espera, y lo que protege el caso no cambia.`
+  - Solo esos cambios mecánicos: si un caso necesita otra aserción o falla otra línea, PARADA.
+  - Si el archivo pasa en verde, no se toca.
+
+**Vigiladas (una por una, con el porqué):**
+- **`clase-archivada-01d2-tareas.test.tsx`** (16 apariciones de "desmontada"):
+  - `:511-529` (ADM-1D211), `:531-544` (control) y `:546-562` (ADM-1D211 hermano): el hermano es un `409 CLASE_ARCHIVADA`, que no está en `CODIGOS_QUE_DEJAN_VIEJA_LA_ACTIVIDAD`, así que la tarea sigue sin quedar vieja (`:561`).
+  - `:919-933` y `:935-959`: fila 36 con la clase archivada y restaurada. Ninguna lectura; `refetchType: "none"` no pide aunque haya observador.
+  - `:1035-1049`: éxito con la vista desmontada. T-01 es del `409`.
+  - `:1054-1152`: fila 33, calificar, que es 01e.
+  - `:1156-1216`: fila 32, borrar con `TAREA_CON_ENTREGAS` o con éxito. T-05 es de `404` y `403`.
+  - `:1220-…`: "la recarga tras el 409 ya en vuelo". El `409` llega con la vista montada.
+  - `:1587-1599` (ADM-1D223, tabla C): `VALIDACION` y `TAREA_CON_ENTREGAS`, solo el aviso.
+- **`clase-archivada-01d2-r1.ataque.test.tsx:719-…`** (ADM-T1D210 a ADM-T1D212): el `409` llega con la vista montada y la recarga ya sale. Luego la persona sale con la recarga en vuelo. T-01 solo cambia el `409` que llega con la vista ya desmontada.
+- **`app/estado-por-id-ch6.test.tsx:1035-1063`** (CH6-A07): cuenta solo las lecturas de T2. T1 está desmontada, y con T-01 tampoco se pide.
+- **`app/estado-por-id-ch6a-r1.ataque.test.tsx:917-961`** (ATQ-CH6-05 y ATQ-CH6-06): guardados con éxito.
+- **Con la vista montada:**
+  - `conflicto-01a.test.tsx:265` (PR-1A13);
+  - `editar-calificada-01c-r1.ataque.test.tsx:171` (CAL-T-93);
+  - `tareas-01a-r1.ataque.test.tsx:207-283` (C-8 queda como está en §E7.5.3);
+  - `editar-tarea-view.test.tsx:1166` (O-r1-2);
+  - `detalle-tarea-view.test.tsx:517` y `:541` (PR-1D05, §E7.3, "Frontend", punto 8 (c));
+  - `tareas-01d-r2.ataque.test.tsx:324-366` (`DELETE` y `PUT` con `404` o `403` vuelven a pedir la tarea);
+  - `tareas-01d-r3.ataque.test.tsx:145-260`.
+- **`tareas-01d-r3.ataque.test.tsx:262-298`** (T-12): la consulta del detalle desmontada, invalidada a mano y vuelta a montar. No pasa por la edición ni por un `409`.
+- **`clases/clase-archivada-01d1-vista.test.tsx:1058-1100`** (ADM-1D109): la escucha de `ClaseLayout` sobre el detalle de la clase, con errores sintéticos. No pasa por `useEditarTarea`.
+- **Las de "desmontada" de entregas, descargas, calificar y "Ver más"** en `features/tareas`: `calificar-01c-r1`, `cruces-01c-r3`, `descarga-ch3-r2`, `entregas-01d-r2`, `entregas-01e-r1` y `entregas-01e-r2` (`.ataque`), `entregas-01d`, `entregas-01e` y `formularios-ch3-r1.ataque`. Usan otros ganchos que 01c2 no toca.
+- **`formulario-tarea.test.tsx`, `tareas-01d-r1.ataque` y `tareas-01d-r2.ataque`, en los campos «Categoría» y «Tema»:** usan `renderCrear`.
+- **`editar-tarea-view.test.tsx:169`, `:218` y `:320`:**
+  - `:169` va después de `:159`, que ya espera el campo;
+  - `:218` lo espera con `findByLabelText`;
+  - `:320` va después de un `waitFor` que exige la opción pintada.
+- **`avisos-al-redirigir-ch6.test.tsx`:** su único `404` (`:498-…`, CH6-A18) es de entregar y comentar, no de borrar.
+- **Las `*.ataque` de `features/tareas` que pidió el orquestador:**
+  - `tareas-01d-r1` a `r4`: arriba, o fuera de los patrones;
+  - `editar-calificada-01c-r1`: CAL-T-93, montada;
+  - las de ADMIN-01d2: `clase-archivada-01d2-r1`, arriba.
+- **`clase-archivada-01d1*` de `features/tareas`:** el patrón `clase-archivada-01d1*` no tiene archivos en `features/tareas`. Los de ADMIN-01d1 viven en `features/clases` (`clase-archivada-01d1-vista.test.tsx`, arriba, y `-r1` y `-r3.ataque`), que no montan la edición de una tarea.
+
+Ninguna `*.ataque` cambia: no hay C-n nuevo.
+
+### §E10.4. La fila de ESTADO §3 (ADMIN-01d1 y 01d2, "revisar en FORO-01")
+- **ADM-1D221 fila 36 con la vista desmontada no era la prueba de esa fila.** Era la variante "como hoy", que dejaba fijada la conducta previa.
+  - La fila habla del `409` que llega con la clase archivada.
+  - Sus pruebas son `:919-933` y `:935-959` (ADM-1D221 fila 36, archivada y `RESTAURADOS`), que siguen igual.
+  - Y el control de ADM-1D211 (`:531-544`).
+- **Con T-01 y FORO-1C41, la fila queda así:**
+  - **tarea:** hecha en 01c2. El `409` con la clase archivada o con la vista desmontada deja vieja la tarea sin pedirla, y al restaurar y volver a abrir la edición se pide la versión del servidor (FORO-1C41, y el caso de §E10.2 con la vista desmontada).
+  - **foro:** hecho en 01c2 (FORO-1C41 en su parte del foro).
+  - **calificar (fila 33):** en 01e (FORO-1E41).
+  - **recurso (ruta 20):** sigue en la fila, como dice §E7.3, "Frontend", punto 8 (b), y A-07.
+- Lo aplica el orquestador al cerrar 01e ("Documentos al cierre"). La Enmienda 10 no cambia esa redacción.
+
+### §E10.5. Conteo de 01c2
+- **~25 → ~26** con `clase-archivada-01d2-tareas.test.tsx`: 13 de producción, 8 pruebas nuevas, 3 normales y 2 `*.ataque` (C-8 condicional y C-15).
+- **~27** si también hace falta el cambio condicional de `editar-tarea-view.test.tsx`.
+- No pasa de unos 30: no hay corte nuevo ni decisión del humano por tamaño.
 
 ## §E9. Enmienda 9 (2026-11-14), final
 
@@ -753,9 +908,9 @@ Los casos de "Pruebas requeridas" siguen como están escritos, con estos movimie
 - **01c1 nueva (la sección "Foro"):** la "Se toca" de la sección de §E7.5.4, más `features/clases/data.ts` por PR-1A17; la lista cerrada de §E8.2 (seis pruebas) y `como-se-entrega-01a.test.tsx:262`; C-9, C-10, C-11 y C-17 a C-20.
 - **01c2 nueva (hermanos, formulario y vistas):**
   - "Se toca": la de esta sección, sin `features/clases/data.ts`, más las vistas del foro, `detalles-de-la-tarea.tsx`, `trabajoService.ts` y el router de §E7.5.4;
-  - lista cerrada: CH4-01 y CH6-A30 (c) de §E7.5.4;
+  - lista cerrada: CH4-01 y CH6-A30 (c) de §E7.5.4; **(Enmienda 10)** más `features/tareas/clase-archivada-01d2-tareas.test.tsx:961-974` (ADM-1D221 fila 36 con la vista desmontada, §E10.2) y, solo si se pone rojo, `features/tareas/editar-tarea-view.test.tsx` en `:159-160`, `:236` y `:334-335` (§E10.3);
   - C-n: C-8 (condicional) y C-15;
-  - vigiladas: las de esta sección y las de §E7.5.4 que aplican a las vistas.
+  - vigiladas: las de esta sección y las de §E7.5.4 que aplican a las vistas; **(Enmienda 10)** más las de §E10.3, una por una.
 - Lo de abajo queda como fuente de esas listas.
 - **Se toca (8 de producción):**
   - en `features/tareas/`: `components/formulario-tarea.tsx` (T-02, T-03 y `tipo`), `components/acciones-de-la-tarea.tsx` (`tipo`), `editar-tarea-view.tsx` (T-01), `hooks.ts` (T-04, T-05 y §E7.3, "Frontend", punto 8 (b)), `data.ts` (los textos del formulario del foro y `TRADUCCION_DE_ERRORES_FORO`), `lib.ts` (las funciones de traducción del foro) y `types.ts`;
@@ -772,6 +927,7 @@ Los casos de "Pruebas requeridas" siguen como están escritos, con estos movimie
   - Si cambia otra cosa, PARADA.
 - **Vigiladas:**
   - Las que fijan la conducta con la vista montada: PR-1D05 (`detalle-tarea-view.test.tsx:287-560`, en especial `:517` y `:541`; §E7.3, "Frontend", punto 8 (c)), PR-1D04 (`editar-tarea-view.test.tsx:300-1166`), PR-1D03 (`formulario-tarea.test.tsx:641-725`), PR-1A13 (`conflicto-01a.test.tsx:265`), ADM-1D211 (`clase-archivada-01d2-tareas.test.tsx:531`) y CAL-T-93 (`editar-calificada-01c-r1.ataque.test.tsx:171`).
+  - **(Enmienda 10)** Faltaban las que fijan conducta con la vista desmontada. ADM-1D221 fila 36 con la vista desmontada (`clase-archivada-01d2-tareas.test.tsx:961-974`) pasa a la lista cerrada de 01c2 (§E10.2). Las demás, con su porqué, están en §E10.3. PR-1D04 (`editar-tarea-view.test.tsx`) sigue vigilada, salvo los tres puntos condicionales de §E10.3.
   - `errores-ch3.test.ts:44` y `errores-ch3-r1.ataque.test.ts:112` (siguen en 15).
   - CH4-01 (`lib/guardas-de-doble-clic-estatico.test.ts:134-139`, `guardandoRef` en `formulario-tarea.tsx`).
   - CH3-C13 (`lib/errores-de-api-estatico.test.ts`), `lib/estatico-ch3-r1.ataque` y CAL-1C12 (`features/tareas/estatico-01c.test.ts`: «Sin categoría» y «Sin tema» solo en `components/clase/data.ts`).
@@ -779,6 +935,7 @@ Los casos de "Pruebas requeridas" siguen como están escritos, con estos movimie
 
 #### §E7.5.4. 01c2 (base: el commit de 01c1)
 **(Enmienda 9, N-23)** El encabezado es el de la Enmienda 7. Esta lista se reparte entre 01c1 (la sección) y 01c2 (las vistas) según la nota de §E7.5.3 y §E8.3.
+**(Enmienda 10)** La lista cerrada de 01c2 suma, además de los puntos 5 y 6 de abajo, `features/tareas/clase-archivada-01d2-tareas.test.tsx:961-974` (§E10.2) y, condicional, `features/tareas/editar-tarea-view.test.tsx` (§E10.3). Las vigiladas de 01c2 suman las de §E10.3. 01c2 pasa de ~25 a ~26, o ~27 con la condicional (§E10.5).
 - **Se toca (15 de producción):**
   - en `features/clases/`: `foros-view.tsx` (nuevo), `data.ts` (la sección "Foro" y los textos de la lista), `hooks.ts` (`useForos`), `types.ts` y `components/fila-de-entrega.tsx` (una prop opcional para "Foro:" y la insignia; sin ella, lo de hoy);
   - en `features/tareas/`: `foro-view.tsx`, `crear-foro-view.tsx` y `editar-foro-view.tsx` (nuevos), `components/detalles-de-la-tarea.tsx` (los textos de la política por prop opcional), `hooks.ts`, `data.ts`, `lib.ts` y `types.ts`;
@@ -2727,3 +2884,14 @@ Origen: las decisiones del humano del 2026-11-14 (`aprobacion.md`, "Decisiones d
 | E9-4 | N-24 | §E9.4 (nueva) | Las `*.ataque` y las estáticas que leen el código de `features/tareas`, `features/calificaciones`, `features/clases` y todo `src/` quedan abiertas con su línea, y cada regla pasa a ser una restricción para el programador. El foro no reutiliza `renovarTrasErrorDeLaEntrega` ni `avisarDelErrorDeLaEntrega` ni la cadena `mensajeDelAvisoDeCalificar`, y sus ganchos no llevan los nombres reservados. Sus formularios no usan `if (<m>.isError) <m>.reset()`. Sin C-n nuevos |
 | E9-5 | N-25 | §E9.5 (nueva); §E7.3, punto 1; §E8.3 ("Dónde va cada caso") | FORO-1C01 se parte: `indiceDeSeccionActiva` y el orden en 01c1, y el router real en `foros/:foroId` en 01c2. Se declara el estado intermedio entre 01c1 y 01c2 (enlaces a rutas inexistentes, que llevan a `/login`) y que 01c1 no entra sola a `main` (DH-16 (a)) |
 | E9-6 | Detalles menores | §E8.1 (FORO-1A08); §E8.2 (C-15); §E8.3 (backend); §E9.6 | FORO-1A08 va en un archivo nuevo, `core/clases/duplicado-con-foros.test.ts`, y 01a pasa a ~33. La firma de `handleGuardar` de C-15 la declara el programador y la forma queda fija |
+
+## Enmienda 10 — tabla de cambios (2026-11-16)
+
+Origen: la PARADA del programador en 01c2 (base `88b37af`). `features/tareas/clase-archivada-01d2-tareas.test.tsx:961-974` falla en `:972` porque T-01 quita la recarga con la vista desmontada. Copia previa de `plan.md`: SHA-256 `e899f7b5…` (la guardó el orquestador). No cambian ids, decisiones del humano, otras subentregas ni ningún C-n.
+
+| E10-n | Origen | Secciones | Qué cambió |
+|---|---|---|---|
+| E10-1 | La PARADA de 01c2 | Nota de la Enmienda 10; §E10.1 y §E10.2 (nuevas); §E7.5.3 (01c2 nueva: lista cerrada y vigiladas); §E7.5.4 (nota) | (A) recomendada: ADM-1D221 fila 36 con la vista desmontada pasa a la lista cerrada de 01c2, con su antes → después literal. Afirma un aviso, ninguna lectura de la tarea y la tarea marcada vieja (`isInvalidated`), como su vecino de la fila 33 y FORO-1C30 y FORO-1C41. Trae la precondición y la comprobación por mutación |
+| E10-2 | El inventario que faltaba | §E10.3 (nueva); §E7.5.3 (vigiladas) | Cinco búsquedas, con su comando y su resultado, sobre todo `frontend/src`. Una cambia seguro. Una cambia solo si se pone roja (`editar-tarea-view.test.tsx`, `:159-160`, `:236` y `:334-335`, por T-02 y T-03; cambio mecánico de esperar el campo). Las demás quedan vigiladas, una por una, con su porqué. Ninguna `*.ataque` cambia |
+| E10-3 | ESTADO §3 | §E10.4 (nueva) | ADM-1D221 fila 36 con la vista desmontada no era la prueba de la fila de ADMIN-01d1 y 01d2. Tarea y foro quedan hechos en 01c2, calificar en 01e y el recurso sigue en la fila. La redacción de "Documentos al cierre" no cambia |
+| E10-4 | Conteo | §E10.5 (nueva); §E7.5.4 (nota) | 01c2: de ~25 a ~26, o ~27 con la condicional. No pasa de unos 30 |

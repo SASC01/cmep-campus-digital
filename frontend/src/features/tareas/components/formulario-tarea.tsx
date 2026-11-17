@@ -25,26 +25,31 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { subirArchivo } from "@/services/almacenService"
 
-import { CLASES_DE_POSICION_DEL_INDICADOR, TEXTOS_FORMULARIO_TAREA } from "../data"
-import { useCategoriasDeLaClase, useTemasDeLaClase } from "../hooks"
+import {
+  CLASES_DE_POSICION_DEL_INDICADOR,
+  TEXTOS_FORMULARIO_POR_TIPO,
+  TEXTOS_FORMULARIO_TAREA,
+} from "../data"
+import { useOpcionesDelFormulario } from "../hooks"
 import {
   cuerpoDeTarea,
   erroresConLlavesDeFila,
-  erroresDeLaTareaDeApi,
+  erroresDelFormularioDeApi,
   erroresSinFilasQuitadas,
   errorQueRedirigeElCliente,
   esTareaModificada,
   estadoInicialDelFormulario,
-  mensajeDeErrorTareas,
+  mensajeDelFormulario,
   puntosDeLaTarea,
 } from "../lib"
 import type {
+  ActividadDetalle,
   Categoria,
   CrearTarea,
   ErroresFormulario,
   EstadoDelFormulario,
-  TareaDetalle,
   Tema,
+  TipoDeActividad,
 } from "../types"
 import { EditorDeRubrica } from "./editor-de-rubrica"
 import { ListaDeAdjuntosPublicados } from "./lista-de-adjuntos-publicados"
@@ -53,8 +58,11 @@ import { ListaDeAdjuntosPublicados } from "./lista-de-adjuntos-publicados"
 // crear; así la edición recibe siempre una versión y no necesita comprobarlo.
 interface FormularioTareaProps<Version extends number | null> {
   claseId: string
-  // La tarea que se edita; null al crear.
-  tarea: TareaDetalle | null
+  // La tarea (o el foro) que se edita; null al crear.
+  tarea: ActividadDetalle | null
+  // FORO-01c2 (§D-8.3): "foro" cambia los rótulos, quita "Cómo se entrega" y valida con el esquema del
+  // foro; sin `tipo`, la tarea, igual que hoy.
+  tipo?: TipoDeActividad
   // A dónde lleva "Cancelar": el muro al crear, el detalle al editar.
   cancelarA: string
   pendiente: boolean
@@ -76,11 +84,16 @@ interface CamposDelFormularioProps<
 > extends FormularioTareaProps<Version> {
   categorias: readonly Categoria[]
   temas: readonly Tema[]
+  // FORO-01c2 (§D-8.6, T-02 y T-03): al editar, si la lista la confirmó una lectura posterior a abrir.
+  // Sin confirmar, su campo no se muestra y guardar conserva el valor de la actividad.
+  categoriasConfirmadas: boolean
+  temasConfirmados: boolean
 }
 
 function CamposDelFormulario<Version extends number | null>({
   claseId,
   tarea,
+  tipo = "tarea",
   cancelarA,
   pendiente,
   onGuardar,
@@ -89,6 +102,8 @@ function CamposDelFormulario<Version extends number | null>({
   enfocarAlMontar = false,
   categorias,
   temas,
+  categoriasConfirmadas,
+  temasConfirmados,
 }: CamposDelFormularioProps<Version>) {
   const solicitar = useSolicitarSubida(claseId)
   const montado = useMontado()
@@ -102,10 +117,14 @@ function CamposDelFormulario<Version extends number | null>({
   // T-08: la categoría o el tema elegidos que ya no están en la lista de la clase (porque se pidió de
   // nuevo tras un 404) dejan el campo en su opción vacía; el navegador nunca conserva en silencio una
   // opción que ya no existe.
+  // FORO-01c2 (T-02 y T-03): solo una lista confirmada decide que la opción ya no existe.
+  const categoriaVigente =
+    !categoriasConfirmadas || categorias.some(({ id }) => id === escrito.categoriaId)
+  const temaVigente = !temasConfirmados || temas.some(({ id }) => id === escrito.temaId)
   const estado: EstadoDelFormulario = {
     ...escrito,
-    categoriaId: categorias.some(({ id }) => id === escrito.categoriaId) ? escrito.categoriaId : "",
-    temaId: temas.some(({ id }) => id === escrito.temaId) ? escrito.temaId : "",
+    categoriaId: categoriaVigente ? escrito.categoriaId : "",
+    temaId: temaVigente ? escrito.temaId : "",
   }
   const [publicados, setPublicados] = useState(() => (tarea === null ? [] : tarea.adjuntos))
   const [elegidos, setElegidos] = useState<readonly File[]>([])
@@ -126,7 +145,7 @@ function CamposDelFormulario<Version extends number | null>({
   // cuando la lista ya se pintó sin el archivo quitado.
   const focoTrasQuitarRef = useRef<number | null>(null)
   const esEdicion = tarea !== null
-  const hayCategorias = categorias.length > 0
+  const hayCategorias = categoriasConfirmadas && categorias.length > 0
   const idTitulo = `${idBase}-titulo`
   const idInstrucciones = `${idBase}-instrucciones`
   const idFecha = `${idBase}-fecha`
@@ -227,7 +246,9 @@ function CamposDelFormulario<Version extends number | null>({
       // no se avisa.
       if (archivoEnSubida !== null && errorQueRedirigeElCliente(error)) return
       if (archivoEnSubida !== null) {
-        toast.error(avisoDeFalloAlSubir(error, archivoEnSubida, mensajeDeErrorTareas))
+        toast.error(
+          avisoDeFalloAlSubir(error, archivoEnSubida, (fallo) => mensajeDelFormulario(tipo, fallo)),
+        )
         return
       }
       // §D-8.3.3: el aviso ya lo dio el hook; la vista recarga la tarea dentro de este try, así que la
@@ -238,14 +259,14 @@ function CamposDelFormulario<Version extends number | null>({
       }
       // Falló al guardar: el aviso ya lo dio el hook; aquí solo se marca el campo, si el error es de
       // un campo.
-      const erroresDeCampo = erroresDeLaTareaDeApi(error)
+      const erroresDeCampo = erroresDelFormularioDeApi(tipo, error)
       // T-10: una fila que se quitó mientras el envío estaba en vuelo ya no puede mostrar su error:
       // pasa a ser el error de la rúbrica.
       if (erroresDeCampo) {
         // T-03 de 01d1: con el formulario desmontado (la clase se archivó o la persona se fue) no hay
         // campo que marcar, y el gancho calló; el error se avisa con su texto.
         if (!montado.current) {
-          toast.error(mensajeDeErrorTareas(error))
+          toast.error(mensajeDelFormulario(tipo, error))
           return
         }
         setErrores(
@@ -264,7 +285,7 @@ function CamposDelFormulario<Version extends number | null>({
   const handleSubmit = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault()
     if (guardandoRef.current || pendiente) return
-    const resultado = cuerpoDeTarea(estado, categorias.length)
+    const resultado = cuerpoDeTarea(estado, categoriasConfirmadas ? categorias.length : 0, tipo)
     if (!resultado.ok) {
       setErrores(erroresConLlavesDeFila(resultado.errores, estado.rubrica))
       return
@@ -273,12 +294,9 @@ function CamposDelFormulario<Version extends number | null>({
     void handleGuardar(resultado.datos, estado.rubrica)
   }
 
-  const tituloDelFormulario = esEdicion
-    ? TEXTOS_FORMULARIO_TAREA.tituloEditar
-    : TEXTOS_FORMULARIO_TAREA.tituloCrear
-  const textoDelBoton = esEdicion
-    ? TEXTOS_FORMULARIO_TAREA.guardar
-    : TEXTOS_FORMULARIO_TAREA.publicar
+  const textos = TEXTOS_FORMULARIO_POR_TIPO[tipo]
+  const tituloDelFormulario = esEdicion ? textos.tituloEditar : textos.tituloCrear
+  const textoDelBoton = esEdicion ? TEXTOS_FORMULARIO_TAREA.guardar : textos.publicar
   const mostrarElige = hayCategorias && estado.categoriaId === ""
 
   return (
@@ -305,7 +323,7 @@ function CamposDelFormulario<Version extends number | null>({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor={idInstrucciones}>{TEXTOS_FORMULARIO_TAREA.campoInstrucciones}</Label>
+            <Label htmlFor={idInstrucciones}>{textos.campoInstrucciones}</Label>
             <Textarea
               id={idInstrucciones}
               name="instrucciones"
@@ -363,120 +381,134 @@ function CamposDelFormulario<Version extends number | null>({
           </div>
 
           <div className="flex flex-wrap items-start gap-x-4 gap-y-4">
-            <div className="flex min-w-56 flex-1 flex-col gap-2">
-              <Label htmlFor={idCategoria}>{TEXTOS_FORMULARIO_TAREA.campoCategoria}</Label>
-              <NativeSelect
-                id={idCategoria}
-                name="categoriaId"
-                autoComplete="off"
-                value={estado.categoriaId}
-                onChange={(evento) => cambiar({ categoriaId: evento.target.value })}
-                aria-invalid={errores.categoriaId !== undefined}
-                aria-describedby={errores.categoriaId ? `${idCategoria}-error` : undefined}
-              >
-                {!hayCategorias && (
-                  <NativeSelectOption value="">
-                    {TEXTOS_FORMULARIO_TAREA.sinCategoria}
-                  </NativeSelectOption>
+            {!categoriasConfirmadas && errores.categoriaId && (
+              <ErrorDeCampo id={`${idCategoria}-error`}>{errores.categoriaId}</ErrorDeCampo>
+            )}
+            {categoriasConfirmadas && (
+              <div className="flex min-w-56 flex-1 flex-col gap-2">
+                <Label htmlFor={idCategoria}>{TEXTOS_FORMULARIO_TAREA.campoCategoria}</Label>
+                <NativeSelect
+                  id={idCategoria}
+                  name="categoriaId"
+                  autoComplete="off"
+                  value={estado.categoriaId}
+                  onChange={(evento) => cambiar({ categoriaId: evento.target.value })}
+                  aria-invalid={errores.categoriaId !== undefined}
+                  aria-describedby={errores.categoriaId ? `${idCategoria}-error` : undefined}
+                >
+                  {!hayCategorias && (
+                    <NativeSelectOption value="">
+                      {TEXTOS_FORMULARIO_TAREA.sinCategoria}
+                    </NativeSelectOption>
+                  )}
+                  {mostrarElige && (
+                    <NativeSelectOption value="">
+                      {TEXTOS_FORMULARIO_TAREA.eligeCategoria}
+                    </NativeSelectOption>
+                  )}
+                  {categorias.map((categoria) => (
+                    <NativeSelectOption key={categoria.id} value={categoria.id}>
+                      {TEXTOS_FORMULARIO_TAREA.opcionDeCategoria(categoria.nombre, categoria.peso)}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+                {errores.categoriaId && (
+                  <ErrorDeCampo id={`${idCategoria}-error`}>{errores.categoriaId}</ErrorDeCampo>
                 )}
-                {mostrarElige && (
+              </div>
+            )}
+            {!temasConfirmados && errores.temaId && (
+              <ErrorDeCampo id={`${idTema}-error`}>{errores.temaId}</ErrorDeCampo>
+            )}
+            {temasConfirmados && (
+              <div className="flex min-w-56 flex-1 flex-col gap-2">
+                <Label htmlFor={idTema}>{TEXTOS_FORMULARIO_TAREA.campoTema}</Label>
+                <NativeSelect
+                  id={idTema}
+                  name="temaId"
+                  autoComplete="off"
+                  value={estado.temaId}
+                  onChange={(evento) => cambiar({ temaId: evento.target.value })}
+                  aria-invalid={errores.temaId !== undefined}
+                  aria-describedby={errores.temaId ? `${idTema}-error` : undefined}
+                >
                   <NativeSelectOption value="">
-                    {TEXTOS_FORMULARIO_TAREA.eligeCategoria}
+                    {TEXTOS_FORMULARIO_TAREA.sinTema}
                   </NativeSelectOption>
+                  {temas.map((tema) => (
+                    <NativeSelectOption key={tema.id} value={tema.id}>
+                      {tema.nombre}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+                {errores.temaId && (
+                  <ErrorDeCampo id={`${idTema}-error`}>{errores.temaId}</ErrorDeCampo>
                 )}
-                {categorias.map((categoria) => (
-                  <NativeSelectOption key={categoria.id} value={categoria.id}>
-                    {TEXTOS_FORMULARIO_TAREA.opcionDeCategoria(categoria.nombre, categoria.peso)}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-              {errores.categoriaId && (
-                <ErrorDeCampo id={`${idCategoria}-error`}>{errores.categoriaId}</ErrorDeCampo>
-              )}
-            </div>
-            <div className="flex min-w-56 flex-1 flex-col gap-2">
-              <Label htmlFor={idTema}>{TEXTOS_FORMULARIO_TAREA.campoTema}</Label>
-              <NativeSelect
-                id={idTema}
-                name="temaId"
-                autoComplete="off"
-                value={estado.temaId}
-                onChange={(evento) => cambiar({ temaId: evento.target.value })}
-                aria-invalid={errores.temaId !== undefined}
-                aria-describedby={errores.temaId ? `${idTema}-error` : undefined}
-              >
-                <NativeSelectOption value="">{TEXTOS_FORMULARIO_TAREA.sinTema}</NativeSelectOption>
-                {temas.map((tema) => (
-                  <NativeSelectOption key={tema.id} value={tema.id}>
-                    {tema.nombre}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-              {errores.temaId && (
-                <ErrorDeCampo id={`${idTema}-error`}>{errores.temaId}</ErrorDeCampo>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* ENTREGAS-01a (P-03 a), DESIGN.md §7.3: "Cómo se entrega", el mismo control segmentado de
-              dos botones que el de entregas tardías, justo antes de él. */}
-          <div className="flex flex-col gap-2">
-            <p id={`${idBase}-como-se-entrega`} className="text-body font-bold text-foreground">
-              {TEXTOS_FORMULARIO_TAREA.grupoComoSeEntrega}
-            </p>
-            <div
-              role="group"
-              aria-labelledby={`${idBase}-como-se-entrega`}
-              aria-describedby={
-                errores.requiereAdjuntos ? `${idBase}-como-se-entrega-error` : undefined
-              }
-              className="vidrio-fuerte w-fit rounded-card p-1"
-            >
-              <div className="relative grid grid-cols-2">
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "absolute inset-y-0 left-0 w-1/2 rounded-row bg-surface transition-transform duration-200 in-data-[material=opaco]:bg-accent-soft motion-reduce:transition-none",
-                    CLASES_DE_POSICION_DEL_INDICADOR[estado.requiereAdjuntos ? 0 : 1],
-                  )}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-pressed={estado.requiereAdjuntos}
-                  onClick={() => cambiar({ requiereAdjuntos: true })}
-                  className="relative w-full aria-pressed:text-link"
-                >
-                  {estado.requiereAdjuntos && <Check aria-hidden="true" />}
-                  {TEXTOS_FORMULARIO_TAREA.conArchivosOEnlaces}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-pressed={!estado.requiereAdjuntos}
-                  onClick={() => cambiar({ requiereAdjuntos: false })}
-                  className="relative w-full aria-pressed:text-link"
-                >
-                  {!estado.requiereAdjuntos && <Check aria-hidden="true" />}
-                  {TEXTOS_FORMULARIO_TAREA.marcarComoCompletada}
-                </Button>
+              dos botones que el de entregas tardías, justo antes de él. Un foro no lo tiene (§D-8.3). */}
+          {tipo === "tarea" && (
+            <div className="flex flex-col gap-2">
+              <p id={`${idBase}-como-se-entrega`} className="text-body font-bold text-foreground">
+                {TEXTOS_FORMULARIO_TAREA.grupoComoSeEntrega}
+              </p>
+              <div
+                role="group"
+                aria-labelledby={`${idBase}-como-se-entrega`}
+                aria-describedby={
+                  errores.requiereAdjuntos ? `${idBase}-como-se-entrega-error` : undefined
+                }
+                className="vidrio-fuerte w-fit rounded-card p-1"
+              >
+                <div className="relative grid grid-cols-2">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "absolute inset-y-0 left-0 w-1/2 rounded-row bg-surface transition-transform duration-200 in-data-[material=opaco]:bg-accent-soft motion-reduce:transition-none",
+                      CLASES_DE_POSICION_DEL_INDICADOR[estado.requiereAdjuntos ? 0 : 1],
+                    )}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-pressed={estado.requiereAdjuntos}
+                    onClick={() => cambiar({ requiereAdjuntos: true })}
+                    className="relative w-full aria-pressed:text-link"
+                  >
+                    {estado.requiereAdjuntos && <Check aria-hidden="true" />}
+                    {TEXTOS_FORMULARIO_TAREA.conArchivosOEnlaces}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-pressed={!estado.requiereAdjuntos}
+                    onClick={() => cambiar({ requiereAdjuntos: false })}
+                    className="relative w-full aria-pressed:text-link"
+                  >
+                    {!estado.requiereAdjuntos && <Check aria-hidden="true" />}
+                    {TEXTOS_FORMULARIO_TAREA.marcarComoCompletada}
+                  </Button>
+                </div>
               </div>
+              {/* El campo está en CAMPOS_DEL_FORMULARIO: un VALIDACION del servidor se muestra aquí. */}
+              {errores.requiereAdjuntos && (
+                <ErrorDeCampo id={`${idBase}-como-se-entrega-error`}>
+                  {errores.requiereAdjuntos}
+                </ErrorDeCampo>
+              )}
             </div>
-            {/* El campo está en CAMPOS_DEL_FORMULARIO: un VALIDACION del servidor se muestra aquí. */}
-            {errores.requiereAdjuntos && (
-              <ErrorDeCampo id={`${idBase}-como-se-entrega-error`}>
-                {errores.requiereAdjuntos}
-              </ErrorDeCampo>
-            )}
-          </div>
+          )}
 
           {/* S-13, DESIGN.md §7.3: control segmentado de dos botones, como el del tipo de publicación.
               El estado lo dicen aria-pressed, el Check y el color del texto, nunca solo la posición. */}
           <div className="flex flex-col gap-2">
             <p id={`${idBase}-tardias`} className="text-body font-bold text-foreground">
-              {TEXTOS_FORMULARIO_TAREA.grupoEntregasTardias}
+              {textos.grupoTardias}
             </p>
             <div
               role="group"
@@ -588,8 +620,11 @@ function CamposDelFormulario<Version extends number | null>({
 export function FormularioTarea<Version extends number | null>(
   props: FormularioTareaProps<Version>,
 ) {
-  const categorias = useCategoriasDeLaClase(props.claseId)
-  const temas = useTemasDeLaClase(props.claseId)
+  // FORO-01c2 (§D-8.6, T-02 y T-03): al editar, las dos listas se vuelven a pedir al abrir.
+  const { categorias, temas, categoriasConfirmadas, temasConfirmados } = useOpcionesDelFormulario(
+    props.claseId,
+    props.tarea !== null,
+  )
 
   // Con las listas ya cargadas, una recarga que falla no desmonta el formulario (se perdería lo
   // escrito): sigue con las últimas que se tuvieron.
@@ -605,6 +640,8 @@ export function FormularioTarea<Version extends number | null>(
       {...props}
       categorias={categorias.data.categorias}
       temas={temas.data.temas}
+      categoriasConfirmadas={categoriasConfirmadas}
+      temasConfirmados={temasConfirmados}
     />
   )
 }

@@ -88,6 +88,8 @@ describe("ataque CHORE-04 r1 · formas de llamar a una mutación que la regla es
     // tomó guardandoRef, y la excepción de §D-5 (la guarda vive en formulario-tarea.tsx).
     expect(fuera.map((falla) => falla.replace(/:\d+ /, " "))).toEqual([
       "/src/features/clases/components/editor-de-categorias.tsx en «const reemplazarFilas = (categoriasDelServidor: readonly Categoria[]) => {»",
+      // FORO-01c2 ronda 0 (C-15, §E8.2): la edición del foro tiene la forma de la de la tarea (la guarda vive en formulario-tarea.tsx y la recarga tras el conflicto es una sola petición esperada).
+      "/src/features/tareas/editar-foro-view.tsx en «const handleGuardar = async (datos: CrearTarea, version: number) => {»",
       "/src/features/tareas/editar-tarea-view.tsx en «const handleGuardar = async (datos: CrearTarea, version: number) => {»",
     ])
   })
@@ -113,6 +115,8 @@ describe("ataque CHORE-04 r1 · formas de llamar a una mutación que la regla es
         // Recargas tras un conflicto, dentro de un manejador que ya guarda su ref.
         "/src/features/clases/editar-recurso-view.tsx: const resultado = await consulta.refetch()",
         "/src/features/tareas/editar-tarea-view.tsx: const resultado = await consulta.refetch()",
+        // FORO-01c2 ronda 0 (C-15, §E8.2): la edición del foro tiene la forma de la de la tarea (la guarda vive en formulario-tarea.tsx y la recarga tras el conflicto es una sola petición esperada).
+        "/src/features/tareas/editar-foro-view.tsx: const resultado = await consulta.refetch()",
         "/src/features/tareas/entrega-de-alumno-view.tsx: consulta.refetch(),",
         "/src/features/tareas/entrega-de-alumno-view.tsx: recargaLaTareaTrasConflicto(error) ? tarea.refetch() : Promise.resolve(null),",
         // Cancela a propósito la petición previa del orden por sección.

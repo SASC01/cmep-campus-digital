@@ -65,6 +65,7 @@ import { api, esApiError } from "@/services/apiClient"
 import {
   claveCategorias,
   claveListaDeForos,
+  clavePrefijoDeForos,
   clavePrefijoDelTrabajo,
   claveTarea,
   claveTemas,
@@ -1465,10 +1466,11 @@ export const useRenombrarTema = (claseId: string) => {
       }),
     onSuccess: async () => {
       toast.success(TEXTOS_TEMAS.avisoRenombrado)
-      // El nombre del tema también sale en el detalle de sus tareas.
+      // El nombre del tema también sale en el detalle de sus tareas y de sus foros (FORO-01c2, T-03).
       await Promise.all([
         invalidarTemas(queryClient, claseId),
         queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
+        queryClient.invalidateQueries({ queryKey: clavePrefijoDeForos(claseId) }),
       ])
     },
     onError: (error) => {
@@ -1489,9 +1491,11 @@ export const useBorrarTema = (claseId: string) => {
       }),
     onSuccess: async () => {
       toast.success(TEXTOS_TEMAS.avisoBorrado)
+      // FORO-01c2 (T-03): el tema también sale en el detalle de sus foros.
       await Promise.all([
         invalidarTemasYTrabajo(queryClient, claseId),
         queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
+        queryClient.invalidateQueries({ queryKey: clavePrefijoDeForos(claseId) }),
       ])
     },
     onError: async (error) => {
@@ -2131,8 +2135,11 @@ export const useGuardarCategorias = (claseId: string) => {
     onSuccess: async (respuesta) => {
       queryClient.setQueryData(claveCategorias(claseId), respuesta)
       toast.success(TEXTOS_CATEGORIAS.avisoGuardadas)
-      // La categoría y su peso también salen en el detalle de las tareas.
-      await queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] })
+      // La categoría y su peso también salen en el detalle de las tareas y de los foros (FORO-01c2, T-03).
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["clases", claseId, "tareas"] }),
+        queryClient.invalidateQueries({ queryKey: clavePrefijoDeForos(claseId) }),
+      ])
     },
     onError: async (error) => {
       marcarViejoElDetalleAnteClaseArchivada(queryClient, claseId, error)

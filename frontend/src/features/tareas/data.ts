@@ -194,6 +194,109 @@ export const TRADUCCION_DE_ERRORES_TAREAS = {
   },
 } satisfies TraduccionDeErrores
 
+// FORO-01c2 (§E7.3 "Frontend", punto 6; §D-2.4): la traducción de errores del foro, del mismo contrato
+// que la de las tareas, con sus textos fijos y sus ids. Los tres códigos nuevos del foro ya vienen en
+// español del servidor.
+export const MENSAJES_ERROR_FORO = {
+  foroNoEncontrado: "Ese foro ya no existe.",
+  participacionNoEncontrada: "Esa participación ya no existe.",
+} as const
+
+export const CODIGOS_CON_MENSAJE_DEL_SERVIDOR_DEL_FORO: readonly string[] = [
+  ...CODIGOS_CON_MENSAJE_DEL_SERVIDOR,
+  "PARTICIPACION_YA_PUBLICADA",
+  "PARTICIPACION_CALIFICADA",
+  "FORO_CERRADO",
+]
+
+export const TRADUCCION_DE_ERRORES_FORO = {
+  generico: MENSAJES_ERROR_TAREAS.generico,
+  mensajesPorCodigo: {
+    ...MENSAJES_POR_CODIGO_DE_TAREAS,
+    TAREA_NO_ENCONTRADA: MENSAJES_ERROR_FORO.foroNoEncontrado,
+    PARTICIPACION_NO_ENCONTRADA: MENSAJES_ERROR_FORO.participacionNoEncontrada,
+  },
+  codigosConMensajeDelServidor: CODIGOS_CON_MENSAJE_DEL_SERVIDOR_DEL_FORO,
+  textosPorCampo: {
+    claseId: MENSAJES_ERROR_TAREAS.sinAccesoALaClase,
+    foroId: MENSAJES_ERROR_FORO.foroNoEncontrado,
+    alumnoId: MENSAJES_ERROR_TAREAS.alumnoNoEncontrado,
+    participacionId: MENSAJES_ERROR_FORO.participacionNoEncontrada,
+  },
+} satisfies TraduccionDeErrores
+
+// Los campos con nombre que pinta el formulario del foro (§D-8.3): los de la tarea sin "Cómo se
+// entrega"; un VALIDACION de requiereAdjuntos o de version cuenta como no pintado (un aviso, FORO-1C08).
+export const CAMPOS_DEL_FORMULARIO_DEL_FORO: readonly string[] = CAMPOS_DEL_FORMULARIO.filter(
+  (campo) => campo !== "requiereAdjuntos",
+)
+
+// Los errores que reemplazan la vista de un foro (como CODIGOS_QUE_REEMPLAZAN_LA_VISTA de la tarea): el
+// foro o el alumno ya no existen, o se perdió el acceso; un VALIDACION de uno de esos ids dice lo mismo.
+export const CODIGOS_QUE_REEMPLAZAN_LA_VISTA_DEL_FORO: readonly string[] = [
+  "TAREA_NO_ENCONTRADA",
+  "SIN_ACCESO_A_LA_CLASE",
+  "ALUMNO_NO_ENCONTRADO",
+]
+// Los prefijos claseId:, foroId: y alumnoId: de un VALIDACION, como expresión: el mensaje del servidor
+// solo se lee con exec, test o startsWith sobre la lista de la tarea (lib/errores-ch3-r1.ataque, O-05).
+export const PREFIJOS_QUE_REEMPLAZAN_LA_VISTA_DEL_FORO = /^(?:claseId|foroId|alumnoId):/
+
+// FORO-01c2 (§D-8.3, §D-9): los textos del formulario del foro. Lo que no cambia (los campos comunes, la
+// rúbrica, "Guardar cambios", "Cancelar" y "Cambios guardados") es el de la tarea.
+export const TEXTOS_FORMULARIO_FORO = {
+  volverAForo: "Volver a Foro",
+  tituloCrear: "Nuevo foro",
+  tituloEditar: "Editar foro",
+  campoInstrucciones: "Planteamiento",
+  grupoTardias: "Participaciones después de la fecha límite",
+  publicar: "Publicar foro",
+  avisoPublicado: "Foro publicado",
+  // Sin texto en §D-9: los de la tarea con el foro (desviación declarada en el resumen de 01c2).
+  avisoRecargaFallida: "No pudimos actualizar el foro. Puedes seguir editando; revisa tu conexión.",
+  avisoRecargaFallidaDelServidor:
+    "No pudimos actualizar el foro. Puedes seguir editando; inténtalo de nuevo en un momento.",
+} as const
+
+// FORO-01c2 (§D-8.3): lo que cambia en FormularioTarea según el tipo de actividad. Sin `tipo`, el de la
+// tarea, igual que hoy.
+export const TEXTOS_FORMULARIO_POR_TIPO = {
+  tarea: {
+    tituloCrear: TEXTOS_FORMULARIO_TAREA.tituloCrear,
+    tituloEditar: TEXTOS_FORMULARIO_TAREA.tituloEditar,
+    campoInstrucciones: TEXTOS_FORMULARIO_TAREA.campoInstrucciones,
+    grupoTardias: TEXTOS_FORMULARIO_TAREA.grupoEntregasTardias,
+    publicar: TEXTOS_FORMULARIO_TAREA.publicar,
+  },
+  foro: {
+    tituloCrear: TEXTOS_FORMULARIO_FORO.tituloCrear,
+    tituloEditar: TEXTOS_FORMULARIO_FORO.tituloEditar,
+    campoInstrucciones: TEXTOS_FORMULARIO_FORO.campoInstrucciones,
+    grupoTardias: TEXTOS_FORMULARIO_FORO.grupoTardias,
+    publicar: TEXTOS_FORMULARIO_FORO.publicar,
+  },
+} as const
+
+// FORO-01c2 (§D-8.3, §D-9): el detalle del foro y su borrado.
+export const TEXTOS_DETALLE_FORO = {
+  avisoRecargaFallida: "No pudimos actualizar el foro. Mostramos la última versión que tenemos.",
+  insignia: "Foro",
+  planteamiento: "Planteamiento",
+  tardias: "Participaciones después de la fecha límite",
+  aceptaTardias: "Se aceptan participaciones con retraso",
+  noAceptaTardias: "No se aceptan participaciones después de la fecha límite",
+  editar: "Editar foro",
+  borrar: "Borrar foro",
+  confirmarBorrar: "Se borrará con su rúbrica, sus adjuntos y todas sus participaciones.",
+  siBorrar: "Sí, borrar foro",
+  borrarConEntregas: "Borrar con las participaciones",
+  avisoBorrado: "Foro borrado",
+  // Sin texto en §D-9: el de la tarea con el foro (desviación declarada en el resumen de 01c2).
+  sinPermisoParaEditar: "No puedes editar este foro.",
+  noExiste: MENSAJES_ERROR_FORO.foroNoEncontrado,
+  cargando: "Cargando el foro…",
+} as const
+
 // CALIFICACIONES-01c (§D-12.2; Enmienda 1, N-04): los 409 de calificar dicen que lo que se vio ya no
 // es lo de ahora. Avisan con el mensaje del servidor, la vista recarga una sola vez y el panel se
 // reinicia con lo actual.
@@ -369,9 +472,50 @@ export const PREFIJOS_QUE_REEMPLAZAN_LA_VISTA: readonly string[] = [
   "alumnoId:",
 ]
 
+// FORO-01c2 (§D-8.6, T-04 de CLASES-03d; §E7.3 "Frontend", punto 8 b): los 409 de guardar que dicen que
+// la actividad en caché ya no es la del servidor. El gancho la deja vieja sin pedirla: con la vista
+// montada la recarga la hace la vista (§7.21); desmontada, o con la clase ya archivada, volver a abrir la
+// edición la pide.
+export const CODIGOS_QUE_DEJAN_VIEJA_LA_ACTIVIDAD: readonly string[] = [
+  "TAREA_MODIFICADA",
+  "TAREA_CON_CALIFICACIONES",
+]
+
 export const CODIGOS_QUE_RENUEVAN_LA_TAREA: readonly string[] = [
   "TAREA_NO_ENCONTRADA",
   "EDICION_NO_PERMITIDA",
   "BORRADO_NO_PERMITIDO",
   "SIN_ACCESO_A_LA_CLASE",
 ]
+
+// FORO-01c2 (§D-8.3): lo que cambia en AccionesDeLaTarea según el tipo de actividad: sus textos, el
+// segmento de su ruta y la sección a la que se vuelve al borrar.
+export const TEXTOS_ACCIONES_POR_TIPO = {
+  tarea: {
+    segmento: "tareas",
+    seccionTrasBorrar: "trabajo",
+    editar: TEXTOS_DETALLE_TAREA.editar,
+    borrar: TEXTOS_DETALLE_TAREA.borrar,
+    confirmarBorrar: TEXTOS_DETALLE_TAREA.confirmarBorrar,
+    siBorrar: TEXTOS_DETALLE_TAREA.siBorrar,
+    borrarConEntregas: TEXTOS_DETALLE_TAREA.borrarConEntregas,
+    cancelar: TEXTOS_DETALLE_TAREA.cancelar,
+  },
+  foro: {
+    segmento: "foros",
+    seccionTrasBorrar: "foro",
+    editar: TEXTOS_DETALLE_FORO.editar,
+    borrar: TEXTOS_DETALLE_FORO.borrar,
+    confirmarBorrar: TEXTOS_DETALLE_FORO.confirmarBorrar,
+    siBorrar: TEXTOS_DETALLE_FORO.siBorrar,
+    borrarConEntregas: TEXTOS_DETALLE_FORO.borrarConEntregas,
+    cancelar: TEXTOS_DETALLE_TAREA.cancelar,
+  },
+} as const
+
+// FORO-01c2 (§D-8.3): la política de tardías en "Detalles" del foro (la de la tarea, sin prop).
+export const POLITICA_DEL_FORO = {
+  titulo: TEXTOS_DETALLE_FORO.tardias,
+  acepta: TEXTOS_DETALLE_FORO.aceptaTardias,
+  noAcepta: TEXTOS_DETALLE_FORO.noAceptaTardias,
+} as const

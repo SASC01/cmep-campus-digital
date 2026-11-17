@@ -10,6 +10,8 @@
 
 **Actualización del 2026-11-12 (DOCS-05):** la decisión ya está en los documentos vivos (`PRD.md` §4.7, `ARCHITECTURE.md` §12 y D-33, ESSENTIALS "Clases en vivo"). La línea "Estado" de arriba, lo que §4.6 dice de las grabaciones (las cambió la decisión del 2026-11-11: se copian a nuestro almacenamiento, §9) y la frase "Ninguno de estos cambios está hecho" de §10 quedan como historia; lo que falta de §10 está en `docs/ESTADO.md` §3. La investigación de DEPLOY que este documento cita (`DEPLOY-investigacion-vps.md`) todavía no está en git; su actualización va a DEPLOY.
 
+**Actualización del 2026-11-16:** Aulas en Vivo activó una cuenta de prueba gratuita (cuenta personal del dueño) y entregó **URL y secreto de la API**: el acceso por API queda verificado. Faltan tres comprobaciones con esa cuenta, que son el primer paso del plan de ENVIVO (sección 8). Pasar a la cuenta de pago del colegio será cambiar esos dos datos de configuración.
+
 **Propuesta en una línea:** clases en vivo con **BigBlueButton por su API**, contratado con un **proveedor alojado** a nombre del colegio; **Zoom** queda como alternativa y **LiveKit** se descarta.
 
 ## 1. Contexto
@@ -186,7 +188,7 @@ Implicaciones: es una segunda máquina además de la de la plataforma, con el an
 
 | Riesgo | Mitigación |
 |---|---|
-| No se ha probado a ningún proveedor; solo se leyeron sus páginas de precios | Prueba piloto de la sección 8 antes de contratar un plan de pago |
+| Aulas en Vivo entregó acceso por API en una cuenta de prueba (2026-11-16), pero todavía no se ha dado ninguna clase con él | Las tres comprobaciones y la prueba piloto de la sección 8, antes de contratar un plan de pago |
 | Ubicación de los servidores del proveedor y latencia desde México sin verificar | Preguntarlo antes del piloto; medir en el piloto |
 | Aulas en Vivo no enlaza términos de servicio ni política de privacidad, y no declara país ni ubicación de servidores (sus teléfonos llevan el prefijo +51) [F7] | Pedirlos por escrito antes de contratar; son necesarios para el aviso de privacidad del colegio |
 | Proveedor chico: puede subir precios o cerrar | El código no depende de él; la salida es otro proveedor o servidor propio con las mismas dos variables |
@@ -201,6 +203,16 @@ Una clase real o simulada, en el horario de más carga, con: un maestro con cám
 
 Para el desarrollo no hace falta pagar: hay planes gratuitos con API (por ejemplo, 50 usuarios y una reunión simultánea [F4], o una sala y 30 usuarios [F7]), suficientes hasta la subentrega de grabaciones.
 
+**Primer paso de ENVIVO: tres comprobaciones con la cuenta de prueba (2026-11-16).** Antes de construir sobre el proveedor, el programador comprueba con una sala de prueba grabada:
+
+1. **Qué versión de BigBlueButton sirve** (la raíz de la API la devuelve), porque algunos parámetros de `create` cambian entre versiones.
+2. **Que llegue el aviso de grabación lista** (`meta_bbb-recording-ready-url`). En `dev` no hay URL pública, así que aquí basta con que `getRecordings` liste la grabación; el aviso se confirma en DEPLOY.
+3. **Que el video en MP4 se obtenga por la API** y no solo con un botón del panel. De esto depende copiar las grabaciones a nuestro almacenamiento (decisión del 2026-11-11). Si no se puede, es PARADA: se decide entre otro proveedor o quedarse con el reproductor web.
+
+Límites del plan gratuito: 1 sala y 30 usuarios a la vez [F7]; una segunda sala simultánea puede fallar sin que sea un defecto nuestro.
+
+**Cambio de cuenta (prueba → cuenta de pago del colegio).** Se sustituyen `BBB_URL` y `BBB_SECRET` en el `.env` del backend; el código no cambia. La URL puede ser distinta entre cuentas. Las grabaciones de una cuenta no pasan a la otra. El cambio se hace sin clases en curso. El secreto de la cuenta institucional lo genera el colegio con su propio correo y contraseña, y nunca va al repositorio, a un mensaje a los agentes ni a un chat.
+
 ## 9. Preguntas abiertas
 
 **Para el colegio:**
@@ -213,7 +225,7 @@ Para el desarrollo no hace falta pagar: hay planes gratuitos con API (por ejempl
 
 **Para el proveedor candidato (Aulas en Vivo), antes de contar con él:**
 
-1. ¿Entregan la URL y el secreto compartido de la API para integrar una plataforma propia, no solo Moodle, Chamilo o WordPress? Su página dice "Accesos API para conectar con tu servicio" [F7], sin más detalle.
+1. ~~¿Entregan la URL y el secreto compartido de la API para integrar una plataforma propia, no solo Moodle, Chamilo o WordPress?~~ **Verificado (2026-11-16):** sí, en la cuenta de prueba gratuita.
 2. ¿Dónde están sus servidores y qué versión de BigBlueButton ofrecen?
 3. ¿Cuál es el máximo de personas por sala, y "usuarios simultáneos" es el total entre todas las salas?
 4. ¿Funciona el aviso automático de grabación lista (`meta_bbb-recording-ready-url`) y la descarga en MP4 por API, o solo desde su panel?
@@ -267,4 +279,4 @@ Consultadas el 2026-11-10.
 - [F6] BigBlueButton, "FAQ": https://docs.bigbluebutton.org/support/faq
 - [F7] Aulas en Vivo (AQPhost), planes de BigBlueButton alojado: https://aulasenvivo.com/
 
-**Sin verificar en este documento:** calidad y ubicación de servidores de los proveedores alojados (ninguno se ha probado); si sus planes entregan URL y secreto de la API sin restricciones; formatos de grabación disponibles en cada plan; términos de Zoom sobre el uso compartido de licencias; precio de un servidor dedicado para BigBlueButton propio.
+**Sin verificar en este documento:** calidad y ubicación de servidores de los proveedores alojados (ninguno se ha probado en una clase); en Aulas en Vivo, la versión de BigBlueButton, el aviso de grabación lista y el MP4 por API (el acceso con URL y secreto sí está verificado desde el 2026-11-16); formatos de grabación disponibles en cada plan; términos de Zoom sobre el uso compartido de licencias; precio de un servidor dedicado para BigBlueButton propio.

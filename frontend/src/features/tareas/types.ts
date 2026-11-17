@@ -1,4 +1,10 @@
-import type { CalificarEntrega, CriterioDeRubrica, CrearTarea } from "@campus/shared"
+import type {
+  CalificarEntrega,
+  CriterioDeRubrica,
+  CrearTarea,
+  ForoDetalle,
+  TareaDetalle,
+} from "@campus/shared"
 import type { QueryObserverResult } from "@tanstack/react-query"
 
 import type { ErroresFormulario } from "@/lib/errores-de-api"
@@ -11,13 +17,16 @@ export type {
   Categoria,
   ComentarioPrivado,
   CrearComentario,
+  CrearForo,
   CrearTarea,
   CriterioDeRubrica,
+  EditarForo,
   EditarTarea,
   EntregaDeAlumno,
   Entregar,
   EstadoEntrega,
   FilaDeEntrega,
+  ForoDetalle,
   ListaComentariosPrivadosRespuesta,
   ListaEntregasRespuesta,
   MiEntrega,
@@ -102,4 +111,16 @@ export interface TotalDelPanel {
 export interface VariablesDeCalificar {
   cuerpo: CalificarEntrega
   habiaCalificacion: boolean
+}
+
+// FORO-01c2 (§D-8.3): una actividad es una tarea o un foro. FormularioTarea, AccionesDeLaTarea y
+// DetallesDeLaTarea reciben cualquiera de las dos; sin `tipo`, la tarea.
+export type TipoDeActividad = "tarea" | "foro"
+export type ActividadDetalle = TareaDetalle | ForoDetalle
+
+// Los textos de la política de entregas tardías en "Detalles" (la fila y sus dos valores).
+export interface TextosDeLaPolitica {
+  titulo: string
+  acepta: string
+  noAcepta: string
 }

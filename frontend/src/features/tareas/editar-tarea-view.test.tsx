@@ -156,8 +156,9 @@ describe("PR-1D04: editar una tarea", () => {
     expect(screen.getByLabelText("Instrucciones (opcional)")).toHaveValue("Dos páginas")
     expect(screen.getByLabelText("Fecha límite")).toHaveValue(isoAFechaLocal(FECHA_ISO))
     expect(screen.getByLabelText("Puntos")).toHaveValue(80)
-    expect(screen.getByLabelText("Categoría")).toHaveValue(CATEGORIA_ID)
-    expect(screen.getByLabelText("Tema")).toHaveValue(TEMA_ID)
+    // FORO-01c2 (§E10; §D-8.6, T-02 y T-03): en la edición el campo aparece cuando lo confirma la lectura al abrir; se espera, y lo que protege el caso no cambia.
+    expect(await screen.findByLabelText("Categoría")).toHaveValue(CATEGORIA_ID)
+    expect(await screen.findByLabelText("Tema")).toHaveValue(TEMA_ID)
     expect(screen.getByRole("button", { name: "No aceptar" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -233,7 +234,8 @@ describe("PR-1D04: editar una tarea", () => {
     renderEditar()
     await screen.findByLabelText("Título")
 
-    expect(screen.getByRole("option", { name: "Sin categoría" })).toBeInTheDocument()
+    // FORO-01c2 (§E10; §D-8.6, T-02 y T-03): en la edición el campo aparece cuando lo confirma la lectura al abrir; se espera, y lo que protege el caso no cambia.
+    expect(await screen.findByRole("option", { name: "Sin categoría" })).toBeInTheDocument()
     guardar()
 
     await screen.findByText("Pantalla del detalle")
@@ -333,6 +335,8 @@ describe("PR-1D04: opciones que cambian y foco al editar (T-08, T-09)", () => {
     })
     renderEditar()
     await screen.findByLabelText("Título")
+    // FORO-01c2 (§E10; §D-8.6, T-02 y T-03): en la edición el campo aparece cuando lo confirma la lectura al abrir; se espera, y lo que protege el caso no cambia.
+    await screen.findByLabelText("Tema")
 
     guardar()
 
